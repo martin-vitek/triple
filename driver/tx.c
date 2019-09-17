@@ -14,8 +14,6 @@ extern bool trace_func_tran;
 extern bool show_debug_tran;
 extern void print_func_trace (bool is_trace, int line, const char *func);
 
-/*-----------------------------------------------------------------------*/
-//Triple HW (ttyRead) Recieve char s , rcount++ ->> if(rcout == triple_MTU) ->> triple_bump(recieved message from HW put through decoder if Incoming message push into sockatCAN message a set rx flag on netdev)
 void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
 {
   /*=======================================================*/
@@ -72,40 +70,45 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
 
   if ((ret = TripleRecvHex(&frame)) < 0)
   {
-    printk("triple : bump : parse fail %d.\n", ret);
+    if (show_debug_tran)
+    {
+      printk("triple : bump : parse fail %d.\n", ret);
+    }
     return;
   }
 
-  if (ret == 0)
+  if (ret == 1)
   {
-    printk("U2C_TR_CMD_TX_CAN\n");
-  }
-  else if (ret == 1)
-  {
-    //printk("U2C_TR_CMD_STATUS\n");
+    if (show_debug_tran)
+    {
+      printk("U2C_TR_CMD_STATUS\n");
+    }
     return;
-
   }
   else if (ret == 2)
   {
-    printk("U2C_TR_CMD_FW_VER\n");
+    if (show_debug_tran)
+    {
+      printk("U2C_TR_CMD_FW_VER\n");
+    }
     return;
 
   }
   /*===============================*/
   static int cnt = 1;
+  if (show_debug_tran)
+  {
+    printk("%d. Data: ", cnt++);
+    for (i = 0; i < DATA_LEN; i++)
+      printk("%02X ", frame.data[i]);
+    printk("| ");
+    printk("ID: ");
+    for (i = 0; i < ID_LEN; i++)
+      printk("%02X ", frame.id[i]);
+    printk("\n");
+    /*===============================*/
 
-  printk("%d. Data: ", cnt++);
-  for (i = 0; i < DATA_LEN; i++)
-    printk("%02X ", frame.data[i]);
-  printk("| ");
-  printk("ID: ");
-  for (i = 0; i < ID_LEN; i++)
-    printk("%02X ", frame.id[i]);
-  printk("\n");
-  /*===============================*/
-
-
+  }
   frame.CAN_port = frame.CAN_port + 1;
   frame.id_type  = frame.id_type - 1;
 
@@ -125,10 +128,10 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
 
   if (!frame.rtr)
   {
-   cf.can_dlc = frame.dlc;
-   cf.can_dlc = DATA_LEN;
-  for (i = 0; i < DATA_LEN; i++)
-    cf.data[i] = frame.data[i];
+    cf.can_dlc = frame.dlc;
+    cf.can_dlc = DATA_LEN;
+    for (i = 0; i < DATA_LEN; i++)
+      cf.data[i] = frame.data[i];
   }
   else
     cf.can_dlc = 0;
@@ -210,7 +213,7 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, struct can_frame *cf)
     triple_frame.data[i] = cf->data[i];
 
   TripleSendHex(&triple_frame);
-  
+
   memcpy(adapter->xbuff, triple_frame.comm_buf, len + cf->can_dlc);
 
   /* Order of next two lines is *very* important.
@@ -270,9 +273,9 @@ void triple_transmit (struct work_struct *work)
     unsigned char *p;
     int i = 0;
     p = adapter->xbuff;
-    for(i=0; i<COM_BUF_LEN; i++)
-      printk("%02X ", *(p + i)); 
-    printk("\n");    
+    for (i = 0; i < COM_BUF_LEN; i++)
+      printk("%02X ", *(p + i));
+    printk("\n");
 
     clear_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
     spin_unlock_bh(&adapter->lock);

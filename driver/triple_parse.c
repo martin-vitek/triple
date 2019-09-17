@@ -31,7 +31,6 @@ const unsigned char   U2C_TR_CMD_SPEED_UP    = 0x92;
 void TripleSendHex(TRIPLE_CAN_FRAME *frame)
 {
   unsigned char *p;
-  int i = 0;
   int length = 0;
 
   p = frame->comm_buf;
@@ -82,7 +81,6 @@ void TripleSendHex(TRIPLE_CAN_FRAME *frame)
 int TripleRecvHex(TRIPLE_CAN_FRAME *frame)
 {
 
-  int i;
   unsigned char *p;
   int offset = 2;
 

@@ -51,16 +51,15 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TripleCAN interface driver");
 MODULE_ALIAS("USB2CAN Triple");
-MODULE_VERSION("v0.5");
+MODULE_VERSION("v0.9");
 MODULE_AUTHOR("Canlab");
 
 /* global variables & define */
-/*=====================================================================*/
 #define N_TRIPLE (NR_LDISCS - 1)
 
-bool trace_func_main = true;
-bool trace_func_tran = true;
-bool trace_func_pars = true;
+bool trace_func_main = false;
+bool trace_func_tran = false;
+bool trace_func_pars = false;
 bool show_debug_main = false;
 bool show_debug_tran = false;
 bool show_debug_pars = false;
@@ -69,18 +68,14 @@ int maxdev = 4;
 __initconst const char banner[] = "USB2CAN TRIPLE SocketCAN interface driver\n";
 struct net_device **triple_devs;
 
-/*=================================================================================================================================================*/
 /* driver layer - (1) Kernel module basics */
-/*=================================================================================================================================================*/
 static int  __init triple_init(void);
 static void __exit triple_exit(void);
 
 module_init(triple_init);
 module_exit(triple_exit);
 
-/*=================================================================================================================================================*/
 /* driver layer - (2)  TTY line discipline */
-/*=================================================================================================================================================*/
 static int  triple_open  (struct tty_struct *tty);
 static void triple_close (struct tty_struct *tty);
 static int  triple_hangup(struct tty_struct *tty);
@@ -100,9 +95,8 @@ static struct tty_ldisc_ops triple_ldisc =
   .receive_buf  = triple_receive_buf,
   .write_wakeup = triple_write_wakeup,
 };
-/*=================================================================================================================================================*/
+
 /* driver layer - (3) Network layer*/
-/*=================================================================================================================================================*/
 static int triple_netdev_open (struct net_device *dev);
 static int triple_netdev_close(struct net_device *dev);
 static netdev_tx_t triple_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -116,9 +110,7 @@ static struct net_device_ops triple_netdev_ops =
   .ndo_change_mtu = triple_change_mtu,
 };
 
-/*=================================================================================================================================================*/
 /* internal function */
-/*=================================================================================================================================================*/
 static void triple_sync (void);
 static int  triple_alloc(dev_t line, USB2CAN_TRIPLE *adapter);
 static void triple_setup(struct net_device *dev);
@@ -634,14 +626,9 @@ static int triple_alloc (dev_t line, USB2CAN_TRIPLE *adapter)
     }
   }
 
-
-  printk(KERN_ERR "Device max dev%d\n", i);
-
   /* Sorry, too many, all slots in use */
   if (i >= maxdev)
     return -1;
-
-  printk(KERN_ERR "sprinf dev name\n");
 
   sprintf(name, "triplecan%d", id);
 

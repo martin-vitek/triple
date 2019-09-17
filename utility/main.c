@@ -71,22 +71,6 @@ const unsigned char   U2C_TR_CMD_FW_VER   = 0x90;
 const unsigned char   U2C_TR_CMD_SPEED_DOWN  = 0x91;
 const unsigned char   U2C_TR_CMD_SPEED_UP    = 0x92;
 
-enum CAN_SPEED
-{
-  SPEED_10k = 10,
-  SPEED_20k = 20,
-  SPEED_33_3k = 33,
-  SPEED_50k = 50,
-  SPEED_62_5k = 62,
-  SPEED_83_3k = 83,
-  SPEED_100k  = 100,
-  SPEED_125k  = 125,
-  SPEED_250k  = 250,
-  SPEED_500k  = 500,
-  SPEED_1M  = 1000,
-  SPEED_USR = 0,
-};
-
 bool USB2CAN_TRIPLE_GetFWVersion(int fd);
 bool USB2CAN_TRIPLE_SendCANSpeed(unsigned int port, int speed, bool listen_only, int fd);
 bool USB2CAN_TRIPLE_SendFDCANSpeed(int speed, bool listen_only, bool esi, bool iso_crc, int fd);
@@ -218,7 +202,6 @@ int main (int argc, char *argv[])
 
   /*Set speed on can port, timestamp mode and get FW version*/
   //USB2CAN_TRIPLE_Init(speed, fd);
-  printf("1\n");
 
   USB2CAN_TRIPLE_SendTimeStampMode(false, fd);
   sleep(1);
@@ -236,22 +219,16 @@ int main (int argc, char *argv[])
     perror("ioctl TIOCSETD");
     exit(EXIT_FAILURE);
   }
-  printf("2\n");
-
-
   /* retrieve the name of the created CAN netdevice */
   if (ioctl(fd, SIOCGIFNAME, buf) < 0)
   {
     perror("ioctl SIOCGIFNAME");
     exit(EXIT_FAILURE);
   }
-  printf("3\n");
 
   syslog(LOG_NOTICE, "attached TTYnetdevice %s channel %d to netdevice %s\n", ttypath, channel, buf);
   /****************************************************************************************************/
   /************* try to rename the created netdevice **************************************************/
-  fprintf(stdout, "\attached tty to n");
-
   if (name)
   {
     struct ifreq ifr;
@@ -273,8 +250,6 @@ int main (int argc, char *argv[])
       close(s);
     }
   }
-  printf("4\n");
-
   /* Daemonize */
   if (run_as_daemon)
   {
@@ -284,8 +259,6 @@ int main (int argc, char *argv[])
       exit(EXIT_FAILURE);
     }
   }
-  printf("5\n");
-
   /* Trap signals that we expect to receive */
   /* End process */
   signal(SIGINT, child_handler);
@@ -293,8 +266,6 @@ int main (int argc, char *argv[])
 
   tripled_running = 1;
   /* The Big Loop */
-  printf("6\n");
-
   while (tripled_running)
   {
     sleep(1); /* wait 1 second */
@@ -468,7 +439,7 @@ bool USB2CAN_TRIPLE_GetFWVersion(int fd)
   USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_FW_VER, &buffer[2]);
   buffer[3] = U2C_TR_LAST_BYTE;
 
-  printf("USB2CAN_TRIPLE_GetFWVersion\n");
+ // printf("USB2CAN_TRIPLE_GetFWVersion\n");
 
   if (write(fd, buffer, 4) <= 0)
   {
@@ -495,7 +466,7 @@ bool USB2CAN_TRIPLE_SendCANSpeed(unsigned int port, int speed, bool listen_only,
   length++;
   buffer[1] = length;
 
-  printf("USB2CAN_TRIPLE_SendCANSpeed\n");
+  //printf("USB2CAN_TRIPLE_SendCANSpeed\n");
 
   if (write(fd, buffer, length) <= 0)
   {
@@ -526,7 +497,7 @@ bool USB2CAN_TRIPLE_SendFDCANSpeed(int speed, bool listen_only, bool esi, bool i
   length++;
   buffer[1] = length;
 
-  printf("USB2CAN_TRIPLE_SendFDCANSpeed\n");
+  //printf("USB2CAN_TRIPLE_SendFDCANSpeed\n");
 
   if (write(fd, buffer, length) <= 0)
   {
@@ -547,11 +518,7 @@ void USB2CAN_TRIPLE_SendTimeStampMode(bool mode, int fd)
   buffer[l] = U2C_TR_LAST_BYTE;
   buffer[1] = l + 1;
 
-  printf("USB2CAN_TRIPLE_SendTimeStampMode\n");
-
-  for (i = 0; i < l + 1; i++)
-    printf("%02X ", *(buffer + i));
-  printf("\n");
+ // printf("USB2CAN_TRIPLE_SendTimeStampMode\n");
 
   if (write(fd, buffer, l + 1) <= 0)
   {
