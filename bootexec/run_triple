@@ -1,0 +1,5 @@
+#!/bin/bash
+sudo insmod /etc/init.d/usb2cansocketcan.ko
+#sudo modprobe usb2cansocketcan
+sudo tripled_64 -s9 ttyACM0 can0
+sudo ip link set can0 up qlen 1000
