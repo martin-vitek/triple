@@ -36,9 +36,9 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
   int tmp_count = adapter->rcount;
 
   adapter->rcount++;
-  
-  
-  if (adapter->rbuff[tmp_count - 1]!= U2C_TR_SPEC_BYTE && s == U2C_TR_LAST_BYTE)
+
+
+  if (adapter->rbuff[tmp_count - 1] != U2C_TR_SPEC_BYTE && s == U2C_TR_LAST_BYTE)
   {
     triple_bump(adapter);
     adapter->rcount = 0;
@@ -47,28 +47,29 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
 
 } /* END: triple_unesc() */
 
-void escape_memcpy(void *dest, void *src, size_t n) 
-{ 
-   // Typecast src and dest addresses to (char *) 
-   int escape = 0;
-   int offset = 0;
-   char *csrc = (char *)src; 
-   char *cdest = (char *)dest; 
-  
-   // Copy contents of src[] to dest[] 
-   for (int i=0; i<n; i++) 
-   {
-    if(csrc[i] == U2C_TR_SPEC_BYTE && escape == 0)
+void escape_memcpy(void *dest, void *src, size_t n)
+{
+  // Typecast src and dest addresses to (char *)
+  bool escape = false;
+  int offset = 0;
+  char *csrc = (char *)src;
+  char *cdest = (char *)dest;
+
+  // Copy contents of src[] to dest[]
+  for (int i = 0; i < n; i++)
+  {
+    if (csrc[i] == U2C_TR_SPEC_BYTE && !escape)
     {
-      escape++;
+      escape = true;
       offset++;
     }
     else
     {
-       cdest[i-offset] = csrc[i];     
+      cdest[i - offset] = csrc[i];
+      escape = false;
     }
-   }
-} 
+  }
+}
 
 /*-----------------------------------------------------------------------*/
 // Triple HW (ttyRead) -> Decoder (CMD_TX_CAN)-> SockatCAN message
@@ -80,7 +81,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   /*=======================================================*/
 
   TRIPLE_CAN_FRAME     frame;
-  int                i;
+  int                i= 0;
   struct sk_buff    *skb;
   struct can_frame   cf;
 
@@ -88,8 +89,14 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
 // printk("adapter->rcount%d\n", adapter->rcount);
 //adapter->rcount
   escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
+  unsigned char *p = frame.comm_buf;
+  
+  /*
+  for (i = 0; i < COM_BUF_LEN; i++)
+    printk("%02X ", *(p + i));
+  printk("\n");
   int ret = 0;
-
+  */
   if ((ret = TripleRecvHex(&frame)) < 0)
   {
     if (show_debug_tran)
@@ -291,12 +298,6 @@ void triple_transmit (struct work_struct *work)
 
     /* v2.2 */
     adapter->devs->stats.tx_packets++;
-    unsigned char *p;
-    int i = 0;
-    p = adapter->xbuff;
-    for (i = 0; i < COM_BUF_LEN; i++)
-      printk("%02X ", *(p + i));
-    printk("\n");
 
     clear_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
     spin_unlock_bh(&adapter->lock);
