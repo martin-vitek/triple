@@ -23,7 +23,9 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
   if (!test_bit(SLF_ERROR, &adapter->flags))
   {
     if (adapter->rcount < TRIPLE_MTU)
+    {
       adapter->rbuff[adapter->rcount] = s;
+    }
     else
     {
       adapter->devs->stats.rx_over_errors++;
@@ -31,22 +33,42 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
       set_bit(SLF_ERROR, &adapter->flags);
     }
   }
-  adapter->rcount++;
+  int tmp_count = adapter->rcount;
 
-  if (s == 0xEF)
+  adapter->rcount++;
+  
+  
+  if (adapter->rbuff[tmp_count - 1]!= U2C_TR_SPEC_BYTE && s == U2C_TR_LAST_BYTE)
   {
     triple_bump(adapter);
     adapter->rcount = 0;
   }
 
-  /*else if(adapter->rcount == TRIPLE_MTU )
-    {
-      triple_bump(adapter);
-      adapter->rcount = 0;
-    }*/
-
 
 } /* END: triple_unesc() */
+
+void escape_memcpy(void *dest, void *src, size_t n) 
+{ 
+   // Typecast src and dest addresses to (char *) 
+   int escape = 0;
+   int offset = 0;
+   char *csrc = (char *)src; 
+   char *cdest = (char *)dest; 
+  
+   // Copy contents of src[] to dest[] 
+   for (int i=0; i<n; i++) 
+   {
+    if(csrc[i] == U2C_TR_SPEC_BYTE && escape == 0)
+    {
+      escape++;
+      offset++;
+    }
+    else
+    {
+       cdest[i-offset] = csrc[i];     
+    }
+   }
+} 
 
 /*-----------------------------------------------------------------------*/
 // Triple HW (ttyRead) -> Decoder (CMD_TX_CAN)-> SockatCAN message
@@ -65,7 +87,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   memset(&frame, 0, sizeof(frame));
 // printk("adapter->rcount%d\n", adapter->rcount);
 //adapter->rcount
-  memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
+  escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
   int ret = 0;
 
   if ((ret = TripleRecvHex(&frame)) < 0)
@@ -212,9 +234,8 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, struct can_frame *cf)
   for (i = 0; i < cf->can_dlc; i++)
     triple_frame.data[i] = cf->data[i];
 
-  TripleSendHex(&triple_frame);
-
-  memcpy(adapter->xbuff, triple_frame.comm_buf, len + cf->can_dlc);
+  len = TripleSendHex(&triple_frame);
+  memcpy(adapter->xbuff, triple_frame.comm_buf, len);
 
   /* Order of next two lines is *very* important.
    * When we are sending a little amount of data,
@@ -226,9 +247,9 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, struct can_frame *cf)
    */
 
   set_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
-  actual = adapter->tty->ops->write(adapter->tty, adapter->xbuff, len + cf->can_dlc);
+  actual = adapter->tty->ops->write(adapter->tty, adapter->xbuff, len);
 
-  adapter->xleft = (len + cf->can_dlc) - actual;
+  adapter->xleft = len - actual;
   adapter->xhead = adapter->xbuff + actual;
   adapter->devs->stats.tx_bytes += cf->can_dlc;
 

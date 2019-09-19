@@ -239,9 +239,9 @@ static void triple_receive_buf (struct tty_struct *tty, const unsigned char *cp,
 {
   USB2CAN_TRIPLE *adapter = (USB2CAN_TRIPLE *) tty->disc_data;
 
-  /*if(!adapter || adapter->magic != TRIPLE_MAGIC || (!netif_running(adapter->devs)))
+  if(!adapter || adapter->magic != TRIPLE_MAGIC || (!netif_running(adapter->devs)))
     return;
-  */
+  
   /* Read the characters out of the buffer */
   while (count--)
   {
@@ -256,7 +256,6 @@ static void triple_receive_buf (struct tty_struct *tty, const unsigned char *cp,
       cp++;
       continue;
     }
-
     triple_unesc(adapter, *cp++);
   }
 

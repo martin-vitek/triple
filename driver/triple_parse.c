@@ -9,26 +9,11 @@ extern void print_func_trace (bool is_trace, int line, const char *func);
 
 /* static function prototype */
 static unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned char *buffer);
+static unsigned char USB2CAN_TRIPLE_PushByteClear(const unsigned char value, unsigned char *buffer);
 static bool USB2CAN_TRIPLE_DLCFromLength(unsigned char *dlc, const unsigned char length);
 static unsigned char USB2CAN_TRIPLE_LengthFromDLC(const unsigned char dlc);
 
-const unsigned char U2C_TR_FIRST_BYTE = 0x0F;
-const unsigned char  U2C_TR_LAST_BYTE = 0xEF;
-
-const unsigned char U2C_TR_SPEC_BYTE = 0x1F;
-
-const unsigned char   U2C_TR_CMD_TX_CAN   = 0x81;
-const unsigned char   U2C_TR_CMD_TX_CAN_TS  = 0x82;
-const unsigned char   U2C_TR_CMD_MARKER   = 0x87;
-const unsigned char   U2C_TR_CMD_SETTINGS   = 0x88;
-const unsigned char   U2C_TR_CMD_BITTIMING  = 0x89;
-const unsigned char   U2C_TR_CMD_STATUS       = 0x8A;
-const unsigned char   U2C_TR_CMD_TIMESTAMP  = 0x8B;
-const unsigned char   U2C_TR_CMD_FW_VER   = 0x90;
-const unsigned char   U2C_TR_CMD_SPEED_DOWN  = 0x91;
-const unsigned char   U2C_TR_CMD_SPEED_UP    = 0x92;
-
-void TripleSendHex(TRIPLE_CAN_FRAME *frame)
+int TripleSendHex(TRIPLE_CAN_FRAME *frame)
 {
   unsigned char *p;
   int length = 0;
@@ -70,11 +55,13 @@ void TripleSendHex(TRIPLE_CAN_FRAME *frame)
     length += USB2CAN_TRIPLE_PushByte(frame->data[i], (p + length));
   }
   /* byte 18 -  LAST BYTE*/
-  length += USB2CAN_TRIPLE_PushByte(U2C_TR_LAST_BYTE, (p + length));
+  //length += USB2CAN_TRIPLE_PushByte(U2C_TR_LAST_BYTE, (p + length));
+  length += USB2CAN_TRIPLE_PushByteClear(U2C_TR_LAST_BYTE, (p + length));
+  //*(p + length) = U2C_TR_LAST_BYTE;
   /* byte 18 - 22 - LENGTH*/
   USB2CAN_TRIPLE_PushByte(length, (p + 1));
   //*(p + 1) = length;
-
+  return length;
 
 }
 
@@ -136,6 +123,11 @@ static unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned
     buffer[0] = value;
     return 1;
   }
+}
+static unsigned char USB2CAN_TRIPLE_PushByteClear(const unsigned char value, unsigned char *buffer)
+{
+    buffer[0] = value;
+    return 1;
 }
 
 static bool USB2CAN_TRIPLE_DLCFromLength(unsigned char *dlc, const unsigned char length)
