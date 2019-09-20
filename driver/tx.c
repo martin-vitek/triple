@@ -89,14 +89,14 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
 // printk("adapter->rcount%d\n", adapter->rcount);
 //adapter->rcount
   escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
+  /*
   unsigned char *p = frame.comm_buf;
   
-  /*
   for (i = 0; i < COM_BUF_LEN; i++)
     printk("%02X ", *(p + i));
   printk("\n");
-  int ret = 0;
   */
+  int ret = 0;
   if ((ret = TripleRecvHex(&frame)) < 0)
   {
     if (show_debug_tran)
