@@ -28,8 +28,9 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
     }
     else
     {
-      adapter->devs->stats.rx_over_errors++;
-      adapter->devs->stats.rx_over_errors++;
+      adapter->devs[0]->stats.rx_over_errors++;
+      adapter->devs[1]->stats.rx_over_errors++;
+      adapter->devs[2]->stats.rx_over_errors++;
       set_bit(SLF_ERROR, &adapter->flags);
     }
   }
@@ -81,7 +82,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   /*=======================================================*/
 
   TRIPLE_CAN_FRAME     frame;
-  int                i= 0;
+  int                i = 0;
   struct sk_buff    *skb;
   struct can_frame   cf;
 
@@ -91,7 +92,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
   /*
   unsigned char *p = frame.comm_buf;
-  
+
   for (i = 0; i < COM_BUF_LEN; i++)
     printk("%02X ", *(p + i));
   printk("\n");
@@ -176,14 +177,14 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
     return;
   }
 
-  skb->dev       = adapter->devs;
+  skb->dev       = adapter->devs[frame.CAN_port - 1];
   skb->protocol  = htons(ETH_P_CAN);
   skb->pkt_type  = PACKET_BROADCAST;
   skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
   can_skb_reserve(skb);
-  can_skb_prv(skb)->ifindex = adapter->devs->ifindex;
+  can_skb_prv(skb)->ifindex = adapter->devs[frame.CAN_port - 1]->ifindex;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,5)
@@ -192,8 +193,8 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
 
   memcpy(skb_put(skb, sizeof(struct can_frame)), &cf, sizeof(struct can_frame));
 
-  adapter->devs->stats.rx_packets++;
-  adapter->devs->stats.rx_bytes += cf.can_dlc;
+  adapter->devs[frame.CAN_port - 1]->stats.rx_packets++;
+  adapter->devs[frame.CAN_port - 1]->stats.rx_bytes += cf.can_dlc;
 
   netif_rx_ni(skb);
 
@@ -203,7 +204,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
 
 /*-----------------------------------------------------------------------*/
 // sockatCAN frame -> Triple HW (ttyWrite)
-void triple_encaps (USB2CAN_TRIPLE *adapter, struct can_frame *cf)
+void triple_encaps (USB2CAN_TRIPLE *adapter, int channel, struct can_frame *cf)
 {
   /*=======================================================*/
   print_func_trace(trace_func_tran, __LINE__, __FUNCTION__);
@@ -216,7 +217,7 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, struct can_frame *cf)
   TRIPLE_CAN_FRAME  triple_frame;
 
   memset(&triple_frame, 0, sizeof(TRIPLE_CAN_FRAME));
-  triple_frame.CAN_port = 1;
+  triple_frame.CAN_port = channel;
   triple_frame.rtr = (cf->can_id & CAN_RTR_FLAG) ? 1 : 0;
 
   if (cf->can_id & CAN_EFF_FLAG)
@@ -258,7 +259,7 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, struct can_frame *cf)
 
   adapter->xleft = len - actual;
   adapter->xhead = adapter->xbuff + actual;
-  adapter->devs->stats.tx_bytes += cf->can_dlc;
+  adapter->devs[channel]->stats.tx_bytes += cf->can_dlc;
 
   /* v2.2: for fixing tx_packet bug */
 } /* END: triple_encaps() */
@@ -278,7 +279,7 @@ void triple_transmit (struct work_struct *work)
   spin_lock_bh(&adapter->lock);
 
   /* First make sure we're connected. */
-  if (!adapter->tty || adapter->magic != TRIPLE_MAGIC || (!netif_running(adapter->devs)))
+  if (!adapter->tty || adapter->magic != TRIPLE_MAGIC || (!netif_running(adapter->devs[0]) && !netif_running(adapter->devs[1]) && !netif_running(adapter->devs[2])))
   {
     spin_unlock_bh(&adapter->lock);
     return;
@@ -297,13 +298,17 @@ void triple_transmit (struct work_struct *work)
 #endif
 
     /* v2.2 */
-    adapter->devs->stats.tx_packets++;
+    adapter->devs[adapter->current_channel]->stats.tx_packets++;
 
     clear_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
     spin_unlock_bh(&adapter->lock);
 
-    if (netif_running(adapter->devs))
-      netif_wake_queue(adapter->devs);
+    if (netif_running(adapter->devs[0]))
+      netif_wake_queue(adapter->devs[0]);
+    if (netif_running(adapter->devs[1]))
+      netif_wake_queue(adapter->devs[1]);
+    if (netif_running(adapter->devs[2]))
+      netif_wake_queue(adapter->devs[2]);
     return;
   }
 

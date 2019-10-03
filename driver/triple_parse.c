@@ -48,7 +48,7 @@ int TripleSendHex(TRIPLE_CAN_FRAME *frame)
   /*byte 8 WRITE DLC */
   length += USB2CAN_TRIPLE_PushByte(dlc, (p + length));
   /*byre 9 PORT -> channel */
-  length += USB2CAN_TRIPLE_PushByte(1 , (p + length));
+  length += USB2CAN_TRIPLE_PushByte(frame->CAN_port , (p + length));
   /* byte 10 - 17 DATA */
   for (int i = 0; i < frame->dlc; i++)
   {
@@ -85,7 +85,7 @@ int TripleRecvHex(TRIPLE_CAN_FRAME *frame)
 
   if (*(p + offset) != U2C_TR_CMD_TX_CAN)
     /* func - byte 1 */
-    frame->CAN_port = 1;
+    frame->CAN_port = *(p + offset + 6);
 
   if (*(p + offset + 5) & 0x80)
   {

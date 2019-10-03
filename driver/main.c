@@ -239,9 +239,9 @@ static void triple_receive_buf (struct tty_struct *tty, const unsigned char *cp,
 {
   USB2CAN_TRIPLE *adapter = (USB2CAN_TRIPLE *) tty->disc_data;
 
-  if(!adapter || adapter->magic != TRIPLE_MAGIC || (!netif_running(adapter->devs)))
+  if (!adapter || adapter->magic != TRIPLE_MAGIC || (!netif_running(adapter->devs[0]) && !netif_running(adapter->devs[1]) && !netif_running(adapter->devs[2])))
     return;
-  
+
   /* Read the characters out of the buffer */
   while (count--)
   {
@@ -249,8 +249,14 @@ static void triple_receive_buf (struct tty_struct *tty, const unsigned char *cp,
     {
       if (!test_and_set_bit(SLF_ERROR, &adapter->flags))
       {
-        if (netif_running(adapter->devs))
-          adapter->devs->stats.rx_errors++;
+        if (netif_running(adapter->devs[0]))
+          adapter->devs[0]->stats.rx_errors++;
+
+        if (netif_running(adapter->devs[1]))
+          adapter->devs[1]->stats.rx_errors++;
+
+        if (netif_running(adapter->devs[2]))
+          adapter->devs[2]->stats.rx_errors++;
       }
 
       cp++;
@@ -324,9 +330,25 @@ static int triple_open (struct tty_struct *tty)
 
     set_bit(SLF_INUSE, &adapter->flags);
 
-    err = register_netdevice(adapter->devs);
+    err = register_netdevice(adapter->devs[0]);
     if (err)
       goto ERR_FREE_CHAN;
+
+    err = register_netdevice(adapter->devs[1]);
+    if (err)
+    {
+      unregister_netdev(adapter->devs[0]);
+      goto ERR_FREE_CHAN;
+    }
+
+    err = register_netdevice(adapter->devs[2]);
+    if (err)
+    {
+      unregister_netdev(adapter->devs[0]);
+      unregister_netdev(adapter->devs[1]);
+      goto ERR_FREE_CHAN;
+    }
+
   }
 
   /* Done.  We have linked the TTY line to a channel. */
@@ -372,8 +394,9 @@ static void triple_close (struct tty_struct *tty)
   flush_work(&adapter->tx_work);
 
   /* Flush network side */
-  unregister_netdev(adapter->devs);
-  //unregister_netdev(adapter->devs[1]);
+  unregister_netdev(adapter->devs[0]);
+  unregister_netdev(adapter->devs[1]);
+  unregister_netdev(adapter->devs[2]);
   /* This will complete via triple_free_netdev */
 
 
@@ -414,12 +437,13 @@ static int triple_ioctl (struct tty_struct *tty, struct file *file, unsigned int
   {
   case SIOCGIFNAME:
   {
-    channel = 0;
-    tmp = strlen(adapter->devs->name) + 1;
+    channel = adapter->gif_channel;
+    tmp = strlen(adapter->devs[channel]->name) + 1;
 
-    if (copy_to_user((void __user *)arg, adapter->devs->name, tmp))
+    if (copy_to_user((void __user *)arg, adapter->devs[channel]->name, tmp))
       return -EFAULT;
 
+    adapter->gif_channel = !adapter->gif_channel;
     return 0;
   }
 
@@ -486,13 +510,13 @@ static int triple_netdev_close (struct net_device *dev)
   if (adapter->tty)
   {
     /* TTY discipline is running. */
-    if (!netif_running(adapter->devs))
+    if (!netif_running(adapter->devs[!channel]))
       clear_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
   }
 
   netif_stop_queue(dev);
 
-  if (!netif_running(adapter->devs))
+  if (!netif_running(adapter->devs[!channel]))
   {
     /* another netdev is closed (down) too, reset TTY buffers. */
     adapter->rcount   = 0;
@@ -544,8 +568,10 @@ static netdev_tx_t triple_xmit (struct sk_buff *skb, struct net_device *dev)
     goto OUT;
   }
 
-  netif_stop_queue(adapter->devs);
-  triple_encaps(adapter, (struct can_frame *) skb->data); // sockatCAN frame -> Triple HW (ttyWrite)
+  netif_stop_queue(adapter->devs[0]);
+  netif_stop_queue(adapter->devs[1]);
+  netif_stop_queue(adapter->devs[2]);
+  triple_encaps(adapter, channel, (struct can_frame *) skb->data); // sockatCAN frame -> Triple HW (ttyWrite)
   spin_unlock(&adapter->lock);
 
 OUT:
@@ -604,10 +630,10 @@ static int triple_alloc (dev_t line, USB2CAN_TRIPLE *adapter)
 
   int                 i;
   int                 channel;
-  int                 id;
+  int                 id[3];
   char                name[IFNAMSIZ];
   struct net_device  *dev;
-  struct net_device  *devs;
+  struct net_device  *devs[3];
   TRIPLE_PRIV          *priv;
 
   channel = 0;
@@ -618,9 +644,9 @@ static int triple_alloc (dev_t line, USB2CAN_TRIPLE *adapter)
 
     if (dev == NULL)
     {
-      id = i;
-      channel++;
-      if (channel > 1)
+      id[channel++] = i;
+
+      if(channel > 1)
         break;
     }
   }
@@ -629,30 +655,72 @@ static int triple_alloc (dev_t line, USB2CAN_TRIPLE *adapter)
   if (i >= maxdev)
     return -1;
 
-  sprintf(name, "triplecan%d", id);
+
+  sprintf(name, "triplecan%d", id[0]);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
-  devs = alloc_netdev(sizeof(*priv), name, triple_setup);
+  devs[0] = alloc_netdev(sizeof(*priv), name, triple_setup);
 #else
-  devs = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN, triple_setup);
+  devs[0] = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN, triple_setup);
 #endif
 
-
-  if (!devs)
+  if (!devs[0])
     return -1;
 
-  devs->base_addr = id;
+  sprintf(name, "triplecan%d", id[1]);
 
-  priv = netdev_priv(devs);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
+  devs[1] = alloc_netdev(sizeof(*priv), name, triple_setup);
+#else
+  devs[1] = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN, triple_setup);
+#endif
+
+  if (!devs[1])
+  {
+    free_netdev(devs[0]);
+    return -1;
+  }
+
+  sprintf(name, "triplecan%d", id[2]);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
+  devs[2] = alloc_netdev(sizeof(*priv), name, triple_setup);
+#else
+  devs[2] = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN, triple_setup);
+#endif
+
+  if (!devs[2])
+  {
+    free_netdev(devs[0]);
+    free_netdev(devs[1]);
+    return -1;
+  }
+
+
+  devs[0]->base_addr = id[0];
+  devs[1]->base_addr = 0x100 | id[1];
+  devs[2]->base_addr = 0x200 | id[2];
+
+  priv = netdev_priv(devs[0]);
+  priv->magic = TRIPLE_MAGIC;
+  priv->adapter = adapter;
+  priv = netdev_priv(devs[1]);
+  priv->magic = TRIPLE_MAGIC;
+  priv->adapter = adapter;
+  priv = netdev_priv(devs[2]);
   priv->magic = TRIPLE_MAGIC;
   priv->adapter = adapter;
 
   /* Initialize channel control data */
   adapter->magic = TRIPLE_MAGIC;
-  adapter->devs = devs;
-  triple_devs[id] = devs;
+  adapter->devs[0] = devs[0];
+  adapter->devs[1] = devs[1];
+  adapter->devs[2] = devs[2];
+  triple_devs[id[0]] = devs[0];
+  triple_devs[id[1]] = devs[1];
+  triple_devs[id[2]] = devs[2];
   spin_lock_init(&adapter->lock);
-  atomic_set(&adapter->ref_count, 1);
+  atomic_set(&adapter->ref_count, 3); //?
   INIT_WORK(&adapter->tx_work, triple_transmit);
 
   return 0;

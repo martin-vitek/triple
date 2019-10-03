@@ -21,7 +21,7 @@ typedef struct
 
   /* Various fields. */
   struct tty_struct  *tty;              /* ptr to TTY structure      */
-  struct net_device  *devs;          /* easy for intr handling    */
+  struct net_device  *devs[3];          /* easy for intr handling    */
   spinlock_t          lock;
   struct work_struct  tx_work;          /* Flushes transmit buffer   */
 
@@ -53,7 +53,7 @@ typedef struct
 /*--------------------------------------------------------------*/
 void triple_unesc   (USB2CAN_TRIPLE *adapter, unsigned char s);
 void triple_bump    (USB2CAN_TRIPLE *adapter);
-void triple_encaps  (USB2CAN_TRIPLE *adapter, struct can_frame *cf);
+void triple_encaps  (USB2CAN_TRIPLE *adapter, int channel, struct can_frame *cf);
 void triple_transmit(struct work_struct *work);
 
 
