@@ -106,7 +106,7 @@ int main (int argc, char *argv[])
   int             run_as_daemon = 1;
   char           *pch;
   char           *tty = NULL;
-  char           *name;
+  char           *name[3];
   int           speed = 250;
   char            buf[IFNAMSIZ + 1];
   char const     *devprefix = "/dev/";
@@ -114,7 +114,10 @@ int main (int argc, char *argv[])
 
   ldisc = N_TRIPLE;
 
-  name = NULL;
+
+  name[0] = NULL;
+  name[1] = NULL;
+  name[2] = NULL;
   ttypath[0] = '\0';
 
   while ((opt = getopt(argc, argv, "s:v?hF")) != -1)
@@ -149,7 +152,12 @@ int main (int argc, char *argv[])
   if (NULL == tty)
     print_usage(argv[0]);
 
-  name = argv[optind + 1];
+  name[0] = argv[optind + 1];
+  if (name[0])
+    name[1] = argv[optind + 2];
+  if (name[1])
+    name[2] = argv[optind + 3];
+
   /* Prepare the tty device name string */
   pch = strstr(tty, devprefix);
   if (pch != tty)
@@ -208,11 +216,11 @@ int main (int argc, char *argv[])
   USB2CAN_TRIPLE_SendCANSpeed(1, speed, false, fd);
   sleep(1);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed, false, fd);
-  sleep(2);
+  sleep(1);
   USB2CAN_TRIPLE_SendFDCANSpeed(speed, false, false, false, fd);
   sleep(1);
   USB2CAN_TRIPLE_GetFWVersion(fd);
-  sleep(1);
+  sleep(2);
 
   if (ioctl(fd, TIOCSETD, &ldisc) < 0)
   {
@@ -229,27 +237,39 @@ int main (int argc, char *argv[])
   syslog(LOG_NOTICE, "attached TTYnetdevice %s channel %d to netdevice %s\n", ttypath, channel, buf);
   /****************************************************************************************************/
   /************* try to rename the created netdevice **************************************************/
-  if (name)
+  /*for (channel = 0; channel < 3; channel++)
   {
-    struct ifreq ifr;
-    int s = socket(PF_INET, SOCK_DGRAM, 0);
 
-    if (s < 0)
-      perror("socket for interface rename");
-    else {
-      strncpy(ifr.ifr_name, buf, IFNAMSIZ);
-      strncpy(ifr.ifr_newname, name, IFNAMSIZ);
-
-      if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
-        syslog(LOG_NOTICE, "netdevice %s rename to %s failed\n", buf, name);
-        perror("ioctl SIOCSIFNAME rename");
-        exit(EXIT_FAILURE);
-      } else
-        syslog(LOG_NOTICE, "netdevice %s renamed to %s\n", buf, name);
-
-      close(s);
+    if (ioctl(fd, SIOCGIFNAME, buf) < 0)
+    {
+      perror("ioctl SIOCGIFNAME");
+      exit(EXIT_FAILURE);
     }
-  }
+
+    syslog(LOG_NOTICE, "attached TTY %s channel %d to netdevice %s\n", ttypath, channel, buf);
+
+    if (name[channel])
+    {
+      struct ifreq ifr;
+      int s = socket(PF_INET, SOCK_DGRAM, 0);
+
+      if (s < 0)
+        perror("socket for interface rename");
+      else {
+        strncpy(ifr.ifr_name, buf, IFNAMSIZ);
+        strncpy(ifr.ifr_newname, name[channel], IFNAMSIZ);
+
+        if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
+          syslog(LOG_NOTICE, "netdevice %s rename to %s failed\n", buf, name[channel]);
+          perror("ioctl SIOCSIFNAME rename");
+          exit(EXIT_FAILURE);
+        } else
+          syslog(LOG_NOTICE, "netdevice %s renamed to %s\n", buf, name[channel]);
+
+        close(s);
+      }
+    }
+  }*/
   /* Daemonize */
   if (run_as_daemon)
   {
@@ -439,7 +459,7 @@ bool USB2CAN_TRIPLE_GetFWVersion(int fd)
   USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_FW_VER, &buffer[2]);
   buffer[3] = U2C_TR_LAST_BYTE;
 
- // printf("USB2CAN_TRIPLE_GetFWVersion\n");
+// printf("USB2CAN_TRIPLE_GetFWVersion\n");
 
   if (write(fd, buffer, 4) <= 0)
   {
@@ -518,7 +538,7 @@ void USB2CAN_TRIPLE_SendTimeStampMode(bool mode, int fd)
   buffer[l] = U2C_TR_LAST_BYTE;
   buffer[1] = l + 1;
 
- // printf("USB2CAN_TRIPLE_SendTimeStampMode\n");
+// printf("USB2CAN_TRIPLE_SendTimeStampMode\n");
 
   if (write(fd, buffer, l + 1) <= 0)
   {

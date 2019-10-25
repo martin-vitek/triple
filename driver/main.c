@@ -57,14 +57,14 @@ MODULE_AUTHOR("Canlab");
 /* global variables & define */
 #define N_TRIPLE (NR_LDISCS - 1)
 
-bool trace_func_main = false;
-bool trace_func_tran = false;
-bool trace_func_pars = false;
+bool trace_func_main = true;
+bool trace_func_tran = true;
+bool trace_func_pars = true;
 bool show_debug_main = false;
 bool show_debug_tran = false;
 bool show_debug_pars = false;
 
-int maxdev = 4;
+int maxdev = 3;
 __initconst const char banner[] = "USB2CAN TRIPLE SocketCAN interface driver\n";
 struct net_device **triple_devs;
 
@@ -126,8 +126,8 @@ static int __init triple_init (void)
 
   int  status;
 
-  if (maxdev < 4)
-    maxdev = 4; /* Sanity */
+  if (maxdev < 3)
+    maxdev = 3; /* Sanity */
 
   printk(banner);
   printk(KERN_ERR "triple: %d interface channels.\n", maxdev);
@@ -430,20 +430,22 @@ static int triple_ioctl (struct tty_struct *tty, struct file *file, unsigned int
 
 
   /* First make sure we're connected. */
-  /*if (!adapter || adapter->magic != TRIPLE_MAGIC)
+  if (!adapter || adapter->magic != TRIPLE_MAGIC)
     return -EINVAL;
-  */
+  
   switch (cmd)
   {
   case SIOCGIFNAME:
   {
     channel = adapter->gif_channel;
+
     tmp = strlen(adapter->devs[channel]->name) + 1;
+    printk("name%s\n", adapter->devs[channel]->name);
 
     if (copy_to_user((void __user *)arg, adapter->devs[channel]->name, tmp))
       return -EFAULT;
 
-    adapter->gif_channel = !adapter->gif_channel;
+    adapter->gif_channel++;
     return 0;
   }
 
@@ -646,7 +648,7 @@ static int triple_alloc (dev_t line, USB2CAN_TRIPLE *adapter)
     {
       id[channel++] = i;
 
-      if(channel > 1)
+      if(channel > 2)
         break;
     }
   }
