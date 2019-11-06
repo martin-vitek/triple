@@ -83,9 +83,10 @@ int TripleRecvHex(TRIPLE_CAN_FRAME *frame)
     return 2;
   }
 
-  if (*(p + offset) != U2C_TR_CMD_TX_CAN)
-    /* func - byte 1 */
-    frame->CAN_port = *(p + offset + 6);
+  //if (*(p + offset) != U2C_TR_CMD_TX_CAN)
+  /* func - byte 1 */
+  frame->CAN_port = *(p + offset + 6);
+  frame->CAN_port = frame->CAN_port -1;
 
   if (*(p + offset + 5) & 0x80)
   {
@@ -126,8 +127,8 @@ static unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned
 }
 static unsigned char USB2CAN_TRIPLE_PushByteClear(const unsigned char value, unsigned char *buffer)
 {
-    buffer[0] = value;
-    return 1;
+  buffer[0] = value;
+  return 1;
 }
 
 static bool USB2CAN_TRIPLE_DLCFromLength(unsigned char *dlc, const unsigned char length)

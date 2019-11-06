@@ -57,9 +57,9 @@ MODULE_AUTHOR("Canlab");
 /* global variables & define */
 #define N_TRIPLE (NR_LDISCS - 1)
 
-bool trace_func_main = true;
-bool trace_func_tran = true;
-bool trace_func_pars = true;
+bool trace_func_main = false;
+bool trace_func_tran = false;
+bool trace_func_pars = false;
 bool show_debug_main = false;
 bool show_debug_tran = false;
 bool show_debug_pars = false;
@@ -437,15 +437,23 @@ static int triple_ioctl (struct tty_struct *tty, struct file *file, unsigned int
   {
   case SIOCGIFNAME:
   {
+    if(adapter->gif_channel > 2)
+      return 0;
+    printk("gif_channel:%d\n", adapter->gif_channel);
+
     channel = adapter->gif_channel;
 
     tmp = strlen(adapter->devs[channel]->name) + 1;
+    printk("actual name%s\n", adapter->devs[channel]->name);
+    
     printk("name%s\n", adapter->devs[channel]->name);
+
+
 
     if (copy_to_user((void __user *)arg, adapter->devs[channel]->name, tmp))
       return -EFAULT;
 
-    adapter->gif_channel++;
+    adapter->gif_channel = adapter->gif_channel+1 % 3;
     return 0;
   }
 
@@ -501,7 +509,7 @@ static int triple_netdev_close (struct net_device *dev)
   USB2CAN_TRIPLE  *adapter = ((TRIPLE_PRIV *) netdev_priv(dev))->adapter;
 
   channel = (dev->base_addr & 0xF00) >> 8;
-  if (channel > 1)
+  if (channel > 2)
   {
     printk(KERN_WARNING "%s: close: invalid channel\n", dev->name);
     return -1;
@@ -563,7 +571,7 @@ static netdev_tx_t triple_xmit (struct sk_buff *skb, struct net_device *dev)
 
   channel = (dev->base_addr & 0xF00) >> 8;
 
-  if (channel > 1)
+  if (channel > 2 )
   {
     spin_unlock(&adapter->lock);
     printk(KERN_WARNING "%s: xmit: invalid channel\n", dev->name);

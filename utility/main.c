@@ -217,7 +217,7 @@ int main (int argc, char *argv[])
   sleep(1);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed, false, fd);
   sleep(1);
-  USB2CAN_TRIPLE_SendFDCANSpeed(speed, false, false, false, fd);
+  USB2CAN_TRIPLE_SendFDCANSpeed(250500, false, false, false, fd);
   sleep(1);
   USB2CAN_TRIPLE_GetFWVersion(fd);
   sleep(2);
@@ -227,17 +227,9 @@ int main (int argc, char *argv[])
     perror("ioctl TIOCSETD");
     exit(EXIT_FAILURE);
   }
-  /* retrieve the name of the created CAN netdevice */
-  if (ioctl(fd, SIOCGIFNAME, buf) < 0)
-  {
-    perror("ioctl SIOCGIFNAME");
-    exit(EXIT_FAILURE);
-  }
-
-  syslog(LOG_NOTICE, "attached TTYnetdevice %s channel %d to netdevice %s\n", ttypath, channel, buf);
   /****************************************************************************************************/
   /************* try to rename the created netdevice **************************************************/
-  /*for (channel = 0; channel < 3; channel++)
+  for (channel = 0; channel < 3; channel++)
   {
 
     if (ioctl(fd, SIOCGIFNAME, buf) < 0)
@@ -246,30 +238,34 @@ int main (int argc, char *argv[])
       exit(EXIT_FAILURE);
     }
 
-    syslog(LOG_NOTICE, "attached TTY %s channel %d to netdevice %s\n", ttypath, channel, buf);
-
+    //rename of interfaces
     if (name[channel])
     {
       struct ifreq ifr;
       int s = socket(PF_INET, SOCK_DGRAM, 0);
 
       if (s < 0)
+      {
         perror("socket for interface rename");
-      else {
+      }
+      else
+      {
         strncpy(ifr.ifr_name, buf, IFNAMSIZ);
         strncpy(ifr.ifr_newname, name[channel], IFNAMSIZ);
-
-        if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
-          syslog(LOG_NOTICE, "netdevice %s rename to %s failed\n", buf, name[channel]);
-          perror("ioctl SIOCSIFNAME rename");
-          exit(EXIT_FAILURE);
-        } else
-          syslog(LOG_NOTICE, "netdevice %s renamed to %s\n", buf, name[channel]);
-
-        close(s);
       }
+      if (ioctl(s, SIOCSIFNAME, &ifr) < 0)
+      {
+        perror("ioctl SIOCSIFNAME rename");
+        exit(EXIT_FAILURE);
+      }
+      else
+      {
+        syslog(LOG_NOTICE, "netdevice %s renamed to %s\n", buf, name[channel]);
+      }
+
+      close(s);
     }
-  }*/
+  }
   /* Daemonize */
   if (run_as_daemon)
   {
@@ -340,7 +336,7 @@ static void print_version (char *prg)
 static void print_usage (char *prg)
 {
   fprintf(stderr, "\nUsage: %s [options] <tty> [canif-name] [canif2-name]\n\n", prg);
-  fprintf(stderr, "Options: -s <speed>[<speed>] (set CAN speed 3..7)\n");
+  fprintf(stderr, "Options: -s <speed>[<speed>] (set CAN speed 10...1000)\n");
   fprintf(stderr, "                10: 10 KBPS\n");
   fprintf(stderr, "                20: 20 KBPS\n");
   fprintf(stderr, "                33: 33 KBPS\n");
@@ -435,21 +431,6 @@ unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned char *
   }
 }
 
-void USB2CAN_TRIPLE_Init(int speed, int comport)
-{
-  USB2CAN_TRIPLE_SendTimeStampMode(false, comport);
-  sleep(1);
-  USB2CAN_TRIPLE_SendCANSpeed(1, speed, false, comport);
-  sleep(1);
-  USB2CAN_TRIPLE_SendCANSpeed(2, speed, false, comport);
-  sleep(1);
-  USB2CAN_TRIPLE_SendFDCANSpeed(speed, false, false, false, comport);
-  sleep(1);
-  USB2CAN_TRIPLE_GetFWVersion(comport);
-  sleep(1);
-//
-}
-
 bool USB2CAN_TRIPLE_GetFWVersion(int fd)
 {
   unsigned char buffer[16];
@@ -518,7 +499,6 @@ bool USB2CAN_TRIPLE_SendFDCANSpeed(int speed, bool listen_only, bool esi, bool i
   buffer[1] = length;
 
   //printf("USB2CAN_TRIPLE_SendFDCANSpeed\n");
-
   if (write(fd, buffer, length) <= 0)
   {
     perror("write");
