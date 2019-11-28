@@ -55,6 +55,71 @@
 #define   DAEMON_NAME      "tripled"
 #define   TTYPATH_LENGTH   64
 
+enum CAN_SPEED
+{
+  SPEED_10k = 10,
+  SPEED_20k = 20,
+  SPEED_33_3k = 33,
+  SPEED_50k = 50,
+  SPEED_62_5k = 62,
+  SPEED_83_3k = 83,
+  SPEED_100k  = 100,
+  SPEED_125k  = 125,
+  SPEED_250k  = 250,
+  SPEED_500k  = 500,
+  SPEED_1M  = 1000,
+  SPEED_USR = 0,
+};
+
+enum CAN_FD_SPEED
+{
+  CAN_USR_SPEED = 0,
+  CAN_125K_250K = 125250,
+  CAN_125K_500K = 125500,
+  CAN_125K_833K = 125833,
+  CAN_125K_1M   = 1251000,
+  CAN_125K_1M5  = 1251500,
+  CAN_125K_2M   = 1252000,
+  CAN_125K_3M   = 1253000,
+  CAN_125K_4M   = 1254000,
+  CAN_125K_5M   = 1255000,
+  CAN_125K_6M7  = 1256700,
+  CAN_125K_8M   = 1258000,
+  CAN_125K_10M  = 1259999,
+
+  CAN_250K_500K = 250500,
+  CAN_250K_833K = 250833,
+  CAN_250K_1M   = 2501000,
+  CAN_250K_1M5  = 2501500,
+  CAN_250K_2M   = 2502000,
+  CAN_250K_3M   = 2503000,
+  CAN_250K_4M   = 2504000,
+  CAN_250K_5M   = 2505000,
+  CAN_250K_6M7  = 2506700,
+  CAN_250K_8M   = 2508000,
+  CAN_250K_10M  = 2509999,
+
+  CAN_500K_833K = 500833,
+  CAN_500K_1M   = 5001000,
+  CAN_500K_1M5  = 5001500,
+  CAN_500K_2M   = 5002000,
+  CAN_500K_3M   = 5003000,
+  CAN_500K_4M   = 5004000,
+  CAN_500K_5M   = 5005000,
+  CAN_500K_6M7  = 5006700,
+  CAN_500K_8M   = 5008000,
+  CAN_500K_10M  = 5009999,
+
+  CAN_1000K_1M5 = 10001500,
+  CAN_1000K_2M  = 10002000,
+  CAN_1000K_3M  = 10003000,
+  CAN_1000K_4M  = 10004000,
+  CAN_1000K_5M  = 10005000,
+  CAN_1000K_6M7 = 10006700,
+  CAN_1000K_8M  = 10008000,
+  CAN_1000K_10M = 10009999,
+};
+
 const unsigned char U2C_TR_FIRST_BYTE = 0x0F;
 const unsigned char  U2C_TR_LAST_BYTE = 0xEF;
 
@@ -119,12 +184,11 @@ int main (int argc, char *argv[])
   name[1] = NULL;
   name[2] = NULL;
   ttypath[0] = '\0';
-
-  while ((opt = getopt(argc, argv, "s:v?hF")) != -1)
+  while ((opt = getopt(argc, argv, "s:n:r:dvwh?fc:")) != -1)
   {
     switch (opt)
     {
-    case 's':
+    case 's'://set speed
       speed = atoi(optarg);
       break;
     case 'F':
@@ -137,6 +201,9 @@ int main (int argc, char *argv[])
       }
 
     case 'h':
+    case 'l': //listen only
+
+      break;
     case '?':
     default:
       print_usage(argv[0]);
@@ -330,36 +397,102 @@ static void print_version (char *prg)
   exit(EXIT_SUCCESS);
 
 } /* END: print_version() */
-
-
 /*------------------------------------------------------------------------------------*/
-static void print_usage (char *prg)
+static void print_speed (char *prg)
 {
-  fprintf(stderr, "\nUsage: %s [options] <tty> [canif-name] [canif2-name]\n\n", prg);
-  fprintf(stderr, "Options: -s <speed>[<speed>] (set CAN speed 10...1000)\n");
-  fprintf(stderr, "                10: 10 KBPS\n");
-  fprintf(stderr, "                20: 20 KBPS\n");
-  fprintf(stderr, "                33: 33 KBPS\n");
-  fprintf(stderr, "                50: 50 KBPS\n");
-  fprintf(stderr, "                62: 62 KBPS\n");
-  fprintf(stderr, "                83: 83 KBPS\n");
-  fprintf(stderr, "                100: 100 KBPS\n");
-  fprintf(stderr, "                125: 125 KBPS\n");
-  fprintf(stderr, "                250: 250 KBPS\n");
-  fprintf(stderr, "                500: 500 KBPS\n");
-  fprintf(stderr, "                1000: 1 MBPS\n");
-  fprintf(stderr, "         -F         (stay in foreground; no daemonize)\n");
-  fprintf(stderr, "         -h         (show this help page)\n");
-  fprintf(stderr, "         -v         (show version info)\n");
-  fprintf(stderr, "\nExamples:\n");
-  fprintf(stderr, "tripled_64 -v /dev/ttyACM0\n");
-  fprintf(stderr, "tripled_64 -s250 /dev/ttyACM0\n");
-  fprintf(stderr, "tripled_64 -s250 /dev/ttyACM0 can0 \n");
+  fprintf(stderr, "\nUsage: %s \n", prg);
+  fprintf(stderr, "--------------------CAN 2.0--------------------\n");
+  fprintf(stderr, "               1 -> 10: 10 KBPS\n");
+  fprintf(stderr, "               2 -> 20: 20 KBPS\n");
+  fprintf(stderr, "               3 -> 33: 33 KBPS\n");
+  fprintf(stderr, "               5 -> 50 : 50 KBPS\n");
+  fprintf(stderr, "               6 -> 62: 62 KBPS\n");
+  fprintf(stderr, "               7 -> 83: 83 KBPS\n");
+  fprintf(stderr, "               8 -> 100: 100 KBPS\n");
+  fprintf(stderr, "               9 -> 125: 125 KBPS\n");
+  fprintf(stderr, "               A -> 250: 250 KBPS\n");
+  fprintf(stderr, "               B -> 500: 500 KBPS\n");
+  fprintf(stderr, "               C -> 1000: 1 MBPS\n");
+  fprintf(stderr, "-----------------------------------------------\n");
+
+  fprintf(stderr, "-----------------CAN FD spped------------------\n");
+  fprintf(stderr, "               0  -> CAN_USR_SPEED = 0,\n");
+  fprintf(stderr, "               1  -> CAN_125K_250K = 125250\n");
+  fprintf(stderr, "               2  -> CAN_125K_500K = 125500\n");
+  fprintf(stderr, "               3  -> CAN_125K_833K = 125833\n");
+  fprintf(stderr, "               4  -> CAN_125K_1M   = 1251000\n");
+  fprintf(stderr, "               5  -> CAN_125K_1M5  = 1251500\n");
+  fprintf(stderr, "               6  -> CAN_125K_2M   = 1252000\n");
+  fprintf(stderr, "               7  -> CAN_125K_3M   = 1253000\n");
+  fprintf(stderr, "               8  -> CAN_125K_4M   = 1254000\n");
+  fprintf(stderr, "               9  -> CAN_125K_5M   = 1255000\n");
+  fprintf(stderr, "               A  -> CAN_125K_6M7  = 1256700\n");
+  fprintf(stderr, "               B  -> CAN_125K_8M   = 1258000\n");
+  fprintf(stderr, "               C  -> CAN_125K_10M  = 1259999\n");
+  fprintf(stderr, "               D  -> CAN_250K_500K = 250500\n");
+  fprintf(stderr, "               E  -> CAN_250K_833K = 250833\n");
+  fprintf(stderr, "               F  -> CAN_250K_1M   = 2501000\n");
+  fprintf(stderr, "              10  -> CAN_250K_1M5  = 2501500\n");
+  fprintf(stderr, "              11  -> CAN_250K_2M   = 2502000\n");
+  fprintf(stderr, "              12  -> CAN_250K_3M   = 2503000\n");
+  fprintf(stderr, "              13  -> CAN_250K_4M   = 2504000\n");
+  fprintf(stderr, "              14  -> CAN_250K_5M   = 2505000\n");
+  fprintf(stderr, "              15  -> CAN_250K_6M7  = 2506700\n");
+  fprintf(stderr, "              16  -> CAN_250K_8M   = 2508000\n");
+  fprintf(stderr, "              17  -> CAN_250K_10M  = 2509999\n");
+  fprintf(stderr, "              18  -> CAN_500K_833K = 500833\n");
+  fprintf(stderr, "              19  -> CAN_500K_1M   = 5001000\n");
+  fprintf(stderr, "              1A  -> CAN_500K_1M5  = 5001500\n");
+  fprintf(stderr, "              1B  -> CAN_500K_2M   = 5002000\n");
+  fprintf(stderr, "              1C  -> CAN_500K_3M   = 5003000\n");
+  fprintf(stderr, "              1D  -> CAN_500K_4M   = 5004000\n");
+  fprintf(stderr, "              1E  -> CAN_500K_5M   = 5005000\n");
+  fprintf(stderr, "              1F  -> CAN_500K_6M7  = 5006700\n");
+  fprintf(stderr, "              20  -> CAN_500K_8M   = 5008000\n");
+  fprintf(stderr, "              21  -> CAN_500K_10M  = 5009999\n");
+  fprintf(stderr, "              22  -> CAN_1000K_1M5 = 10001500\n");
+  fprintf(stderr, "              23  -> CAN_1000K_2M  = 10002000\n");
+  fprintf(stderr, "              24  -> CAN_1000K_3M  = 10003000\n");
+  fprintf(stderr, "              25  -> CAN_1000K_4M  = 10004000\n");
+  fprintf(stderr, "              26  -> CAN_1000K_5M  = 10005000\n");
+  fprintf(stderr, "              27  -> CAN_1000K_6M7 = 10006700\n");
+  fprintf(stderr, "              28  -> CAN_1000K_8M  = 10008000\n");
+  fprintf(stderr, "              29  -> CAN_1000K_10M = 10009999\n");
+  fprintf(stderr, "-----------------------------------------------\n");
   fprintf(stderr, "\n");
   exit(EXIT_FAILURE);
 
 } /* END: print_usage() */
 
+/*------------------------------------------------------------------------------------*/
+static void print_usage (char *prg)
+{
+  fprintf(stderr, "\nUsage: %s [options] <tty>\\n\n", prg);
+  fprintf(stderr, "         -d         (stay in foreground; no daemonize)\n");
+  fprintf(stderr, "         -h         (show this help page)\n");
+  fprintf(stderr, "         -v         (show version info)\n");
+  fprintf(stderr, "         -w         (show FW version info <requires connected device>)\n");
+  fprintf(stderr, "         -s         (show version info)\n");
+  fprintf(stderr, "         -n[name]:[name]:[name]         (show version info)\n");
+  fprintf(stderr, "         -r[t/f]:[t/f]:[t/f] read-only mode (t-true, f-false)\n");
+  fprintf(stderr, "         -f         (CAN FD on port 3)\n");
+  fprintf(stderr, "         -c         (User defined CAN FD bittiming)\n");
+  fprintf(stderr, "\nExamples:\n");
+  fprintf(stderr, "Deamon can be used in interactive mode or you can use parametrs\n");
+  fprintf(stderr, "Interactive mode : ./tripled_64 -i\n\n");
+  fprintf(stderr, "tripled_64 -s[port1]:[port2]:[port3] /dev/ttyACM0\n");
+  fprintf(stderr, "tripled_64 -s /dev/ttyACM0\n");
+  fprintf(stderr, "tripled_64 -s250 /dev/ttyACM0 can0 \n");
+  fprintf(stderr, "\n");
+  exit(EXIT_FAILURE);
+
+} /* END: print_usage() */
+/*------------------------------------------------------------------------------------*/
+static void run_interactive ()
+{
+
+
+}
 
 /*------------------------------------------------------------------------------------*/
 static void child_handler (int signum)
