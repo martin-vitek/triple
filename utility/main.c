@@ -284,7 +284,7 @@ int main (int argc, char *argv[])
   sleep(1);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed, false, fd);
   sleep(1);
-  USB2CAN_TRIPLE_SendFDCANSpeed(250500, false, false, false, fd);
+  USB2CAN_TRIPLE_SendFDCANSpeed(2502000, false, false, false, fd);
   sleep(1);
   USB2CAN_TRIPLE_GetFWVersion(fd);
   sleep(2);

@@ -67,12 +67,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
 
   unsigned char *p = frame.comm_buf;
-  if (show_debug_tran)
-  {
-    for (i = 0; i < COM_BUF_LEN; i++)
-      printk("%02X ", *(p + i));
-    printk("\n");
-  }
+
 
   int ret = 0;
   if ((ret = TripleRecvHex(&frame)) < 0)
@@ -85,7 +80,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   if (ret == 1)
   {
     if (show_debug_tran)
-      printk("U2C_TR_CMD_STATUS\n");
+     // printk("U2C_TR_CMD_STATUS\n");
     return;
   }
   else if (ret == 2)
@@ -94,7 +89,12 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
       printk("U2C_TR_CMD_FW_VER\n");
     return;
   }
-
+  if (show_debug_tran)
+  {
+    for (i = 0; i < COM_BUF_LEN; i++)
+      printk("%02X ", *(p + i));
+    printk("\n");
+  }
   if (!frame.fd)
   {
     /*===============================*/
@@ -329,10 +329,11 @@ void triple_encaps_fd (USB2CAN_TRIPLE *adapter, int channel, struct canfd_frame 
 
   memset(&triple_frame, 0, sizeof(TRIPLE_CAN_FRAME));
 
+
   triple_frame.fd = true;
   triple_frame.CAN_port = channel + 1;
 
-  //RRS insted of RTR same flag in linux ??
+  //RRS insted of RTR, same flag in linux ??
   triple_frame.rtr = (cf->can_id & CAN_RTR_FLAG) ? 1 : 0;
 
   if (cf->can_id & CAN_EFF_FLAG)
@@ -369,6 +370,13 @@ void triple_encaps_fd (USB2CAN_TRIPLE *adapter, int channel, struct canfd_frame 
 
   len = TripleSendHex(&triple_frame);
   memcpy(adapter->xbuff, triple_frame.comm_buf, len);
+
+  if (show_debug_tran)
+  {
+    for (i = 0; i < COM_BUF_LEN; i++)
+      printk("%02X ", *(triple_frame.comm_buf + i));
+    printk("GREP#1\n");
+  }
 
   set_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
   actual = adapter->tty->ops->write(adapter->tty, adapter->xbuff, len);

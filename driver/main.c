@@ -62,8 +62,8 @@ bool trace_func_main = false;
 bool trace_func_tran = false;
 bool trace_func_pars = false;
 bool show_debug_main = false;
-bool show_debug_tran = false;
-bool show_debug_pars = false;
+bool show_debug_tran = true;
+bool show_debug_pars = true;
 
 int maxdev = 3;
 __initconst const char banner[] = "USB2CAN TRIPLE SocketCAN interface driver\n";
@@ -128,8 +128,8 @@ static int __init triple_init (void)
 
   int  status;
 
-  if (maxdev < 3)
-    maxdev = 3; /* Sanity */
+  if (maxdev < 6)
+    maxdev = 6; /* Sanity */
 
   printk(banner);
   printk(KERN_ERR "triple: %d interface channels.\n", maxdev);
@@ -691,9 +691,10 @@ static int triple_alloc (dev_t line, USB2CAN_TRIPLE *adapter)
   }
 
   sprintf(name, "triplecan%d", id[2]);
-
+  adapter->can_fd = true;
   if (adapter->can_fd)
   {
+    printk("---------------->canfd alloc netdev\n");
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
     devs[2] = alloc_netdev(sizeof(*priv), name, triple_fd_setup);
 #else
