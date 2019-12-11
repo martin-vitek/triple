@@ -40,7 +40,7 @@ int TripleSendHex(TRIPLE_CAN_FRAME *frame)
   if (frame->fd)
   {
     dlc |= 0x20;//priznak CAN FD
-    if (frame->fd_sid11)
+    if (frame->rtr)
       dlc |= 0x40;
     if (frame->fd_br_switch)
       dlc |= 0x10;
@@ -103,7 +103,7 @@ int TripleRecvHex(TRIPLE_CAN_FRAME *frame)
     if (*(p + offset + 5) & 0x10)
       frame->fd_br_switch = true;
     if (*(p + offset + 5) & 0x40)
-      frame->fd_sid11 = true;
+      frame->rtr = (int)true;
   }
   else
   {

@@ -78,101 +78,154 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   if ((ret = TripleRecvHex(&frame)) < 0)
   {
     if (show_debug_tran)
-    {
       printk("triple : bump : parse fail %d.\n", ret);
-    }
     return;
   }
 
   if (ret == 1)
   {
     if (show_debug_tran)
-    {
       printk("U2C_TR_CMD_STATUS\n");
-    }
     return;
   }
   else if (ret == 2)
   {
     if (show_debug_tran)
-    {
       printk("U2C_TR_CMD_FW_VER\n");
-    }
     return;
-
   }
-  /*===============================*/
-  static int cnt = 1;
-  if (show_debug_tran)
+
+  if (!frame.fd)
   {
-    printk("%d. Data: ", cnt++);
-    for (i = 0; i < DATA_LEN; i++)
-      printk("%02X ", frame.data[i]);
-    printk("| ");
-    printk("ID: ");
-    for (i = 0; i < ID_LEN; i++)
-      printk("%02X ", frame.id[i]);
-    printk("\n");
     /*===============================*/
-  }
+    static int cnt = 1;
+    if (show_debug_tran)
+    {
+      printk("%d. Data: ", cnt++);
+      for (i = 0; i < DATA_LEN; i++)
+        printk("%02X ", frame.data[i]);
+      printk("| ");
+      printk("ID: ");
+      for (i = 0; i < ID_LEN; i++)
+        printk("%02X ", frame.id[i]);
+      printk("\n");
+      /*===============================*/
+    }
 
-  frame.CAN_port = frame.CAN_port;//+ 1;
-  frame.id_type  = frame.id_type - 1;
+    frame.CAN_port = frame.CAN_port;//+ 1;
+    frame.id_type  = frame.id_type - 1;
 
-  cf.can_id = 0;
+    cf.can_id = 0;
 
-  if (frame.rtr)
-    cf.can_id |= CAN_RTR_FLAG;
+    if (frame.rtr)
+      cf.can_id |= CAN_RTR_FLAG;
 
-  if (frame.id_type)
-    cf.can_id |= CAN_EFF_FLAG;
+    if (frame.id_type)
+      cf.can_id |= CAN_EFF_FLAG;
 
-  for (i = 0; i < ID_LEN; i++)
-    cf.can_id |= (frame.id[ID_LEN - 1 - i] << (i * 8));
+    for (i = 0; i < ID_LEN; i++)
+      cf.can_id |= (frame.id[ID_LEN - 1 - i] << (i * 8));
 
-  /* RTR frames may have a dlc > 0 but they never have any data bytes */
-  //*(u64 *)(&cf.data) = 0;
+    /* RTR frames may have a dlc > 0 but they never have any data bytes */
+    //*(u64 *)(&cf.data) = 0;
 
-  if (!frame.rtr)
-  {
-    cf.can_dlc = frame.dlc;
-    for (i = 0; i < DATA_LEN; i++)
-      cf.data[i] = frame.data[i];
+    if (!frame.rtr)
+    {
+      cf.can_dlc = frame.dlc;
+      for (i = 0; i < DATA_LEN; i++)
+        cf.data[i] = frame.data[i];
+    }
+    else
+      cf.can_dlc = 0;
+
   }
   else
-    cf.can_dlc = 0;
+  {
+    /*===============================*/
+    static int cnt = 1;
+    if (show_debug_tran)
+    {
+      printk("%d. Data: ", cnt++);
+      for (i = 0; i < DATA_FD_LEN; i++)
+        printk("%02X ", frame.data[i]);
+      printk("| ");
+      printk("ID: ");
+      for (i = 0; i < ID_LEN; i++)
+        printk("%02X ", frame.id[i]);
+      printk("\n");
+      /*===============================*/
+    }
 
-  
-if(!frame->fd)
-{
+    frame.CAN_port = frame.CAN_port;//+ 1;
+    frame.id_type  = frame.id_type - 1;
+
+    cf_fd.can_id = 0;
+
+    if (frame.rtr)
+      cf_fd.can_id |= CAN_RTR_FLAG;
+
+    if (frame.id_type)
+      cf_fd.can_id |= CAN_EFF_FLAG;
+
+    if (frame.fd_br_switch )
+    {
+      cf_fd.flags |= CANFD_BRS;
+    }
+
+    if (frame.fd_esi )
+    {
+      cf_fd.flags |=  CANFD_ESI;
+    }
+
+    for (i = 0; i < ID_LEN; i++)
+      cf_fd.can_id |= (frame.id[ID_LEN - 1 - i] << (i * 8));
+
+    /* RTR frames may have a dlc > 0 but they never have any data bytes */
+    //*(u64 *)(&cf.data) = 0;
+
+    if (!frame.rtr)
+    {
+      cf_fd.len = frame.dlc;
+      for (i = 0; i < DATA_FD_LEN; i++)
+        cf_fd.data[i] = frame.data[i];
+    }
+    else
+      cf_fd.len = 0;
+
+  }
+
+//---------------------------------------------------------------------------------------------------------
+  if (!frame.fd)
+  {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
-  skb = dev_alloc_skb(sizeof(struct can_frame) + sizeof(struct can_skb_priv));
+    skb = dev_alloc_skb(sizeof(struct can_frame) + sizeof(struct can_skb_priv));
 #else
-  skb = dev_alloc_skb(sizeof(struct can_frame));
+    skb = dev_alloc_skb(sizeof(struct can_frame));
 #endif
-}
-else
-{
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
-  skb = dev_alloc_skb(sizeof(struct canfd_frame) + sizeof(struct can_skb_priv));
+  }
+  else
+  {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+    skb = dev_alloc_skb(sizeof(struct canfd_frame) + sizeof(struct can_skb_priv));
 #else
-  skb = dev_alloc_skb(sizeof(struct canfd_frame));
+    skb = dev_alloc_skb(sizeof(struct canfd_frame));
 #endif
-}
+  }
+
   if (!skb)
   {
     return;
   }
 
+  if (!frame.fd)
+    skb->protocol  = htons(ETH_P_CAN);
+  else
+    skb->protocol  = htons(ETH_P_CANFD);
+
   skb->dev       = adapter->devs[frame.CAN_port];
-
-if(!frame->fd)
-  skb->protocol  = htons(ETH_P_CAN);
-else
-  skb->protocol  = htons(ETH_P_CANFD);
-
   skb->pkt_type  = PACKET_BROADCAST;
   skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
   can_skb_reserve(skb);
@@ -183,7 +236,7 @@ else
   can_skb_prv(skb)->skbcnt = 0;
 #endif
 
-  if (!frame->fd)
+  if (!frame.fd)
     memcpy(skb_put(skb, sizeof(struct can_frame)), &cf, sizeof(struct can_frame));
   else
     memcpy(skb_put(skb, sizeof(struct canfd_frame)), &cf_fd, sizeof(struct canfd_frame));
@@ -276,8 +329,10 @@ void triple_encaps_fd (USB2CAN_TRIPLE *adapter, int channel, struct canfd_frame 
 
   memset(&triple_frame, 0, sizeof(TRIPLE_CAN_FRAME));
 
+  triple_frame.fd = true;
   triple_frame.CAN_port = channel + 1;
 
+  //RRS insted of RTR same flag in linux ??
   triple_frame.rtr = (cf->can_id & CAN_RTR_FLAG) ? 1 : 0;
 
   if (cf->can_id & CAN_EFF_FLAG)
@@ -289,6 +344,16 @@ void triple_encaps_fd (USB2CAN_TRIPLE *adapter, int channel, struct canfd_frame 
   {
     triple_frame.id_type = 0;
     id &= cf->can_id & CAN_SFF_MASK;
+  }
+
+  if (cf->flags & CANFD_BRS)
+  {
+    triple_frame.fd_br_switch = true;
+  }
+
+  if (cf->flags & CANFD_ESI)
+  {
+    triple_frame.fd_esi = true;
   }
 
   for (i = ID_LEN - 1; i >= 0; i--)

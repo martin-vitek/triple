@@ -74,18 +74,17 @@ typedef struct
   int            CAN_port;
   int            id_type;
   int            rtr;
-  int            dlc;
-  int            data_len;
+  int            dlc;//dlc code value (can 2.0 0-8 for CAN FD values are encoded to intervals 0-15)
+  int            data_len; //can fd len
 
-  bool            fd_br_switch;
-  bool            fd_esi;
-  bool            fd_sid11;
-  bool            fd;
+  bool            fd_br_switch;//bitrate switch
+  bool            fd_esi;//error state indicator
+  bool            fd; /// fdf
 
   unsigned char  id      [ID_LEN];
-  unsigned char  data    [DATA_FD_LEN];
-  unsigned char  comm_buf [COM_BUF_LEN];
-
+  unsigned char  data    [DATA_FD_LEN]; // up 64 bytes
+  unsigned char  comm_buf [COM_BUF_LEN]; // up 100 bytes
+  
 } TRIPLE_CAN_FRAME;
 
 inline static void escape_memcpy(void *dest, void *src, size_t n)
