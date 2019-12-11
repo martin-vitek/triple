@@ -7,12 +7,6 @@ extern bool show_debug_pars;
 extern bool trace_func_pars;
 extern void print_func_trace (bool is_trace, int line, const char *func);
 
-/* static function prototype */
-static unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned char *buffer);
-static unsigned char USB2CAN_TRIPLE_PushByteClear(const unsigned char value, unsigned char *buffer);
-static bool USB2CAN_TRIPLE_DLCFromLength(unsigned char *dlc, const unsigned char length);
-static unsigned char USB2CAN_TRIPLE_LengthFromDLC(const unsigned char dlc);
-
 int TripleSendHex(TRIPLE_CAN_FRAME *frame)
 {
   unsigned char *p;
@@ -39,12 +33,24 @@ int TripleSendHex(TRIPLE_CAN_FRAME *frame)
   length += USB2CAN_TRIPLE_PushByte(frame->id[3], (p + length));
   /* byte 7 - DLC*/
   unsigned char dlc = 0;
-  USB2CAN_TRIPLE_DLCFromLength(&dlc, frame->dlc);
-  /* extended id , rtr FLAGY */
+/////////
+  USB2CAN_TRIPLE_CANFD_DLCFromLength(&dlc, frame->dlc);
   if (frame->id_type)
     dlc |= 0x80;
-  if (frame->rtr)
-    dlc |= 0x40;
+  if (frame->fd)
+  {
+    dlc |= 0x20;//priznak CAN FD
+    if (frame->fd_sid11)
+      dlc |= 0x40;
+    if (frame->fd_br_switch)
+      dlc |= 0x10;
+  }
+  else
+  {
+    if (frame->rtr)
+      dlc |= 0x40;
+  }
+
   /*byte 8 WRITE DLC */
   length += USB2CAN_TRIPLE_PushByte(dlc, (p + length));
   /*byre 9 PORT -> channel */
@@ -55,12 +61,9 @@ int TripleSendHex(TRIPLE_CAN_FRAME *frame)
     length += USB2CAN_TRIPLE_PushByte(frame->data[i], (p + length));
   }
   /* byte 18 -  LAST BYTE*/
-  //length += USB2CAN_TRIPLE_PushByte(U2C_TR_LAST_BYTE, (p + length));
   length += USB2CAN_TRIPLE_PushByteClear(U2C_TR_LAST_BYTE, (p + length));
-  //*(p + length) = U2C_TR_LAST_BYTE;
-  /* byte 18 - 22 - LENGTH*/
+
   USB2CAN_TRIPLE_PushByte(length, (p + 1));
-  //*(p + 1) = length;
   return length;
 
 }
@@ -85,85 +88,41 @@ int TripleRecvHex(TRIPLE_CAN_FRAME *frame)
 
   //if (*(p + offset) != U2C_TR_CMD_TX_CAN)
   /* func - byte 1 */
-  frame->CAN_port = *(p + offset + 6);
-  frame->CAN_port = frame->CAN_port -1;
-
+  frame->CAN_port = *(p + offset + 6) & 0x0F;
+  frame->CAN_port = frame->CAN_port - 1;
+///////////
   if (*(p + offset + 5) & 0x80)
   {
     frame->id_type  =  (int) true;
   }
-  if (*(p + offset + 5) & 0x40)
+///////////
+  //FD CAN
+  if (*(p + offset + 5) & 0x20)
   {
-    frame->rtr =  (int) true;
-  }
-
-  frame->dlc = USB2CAN_TRIPLE_LengthFromDLC(*(p + offset + 5) & 0x0F);
-
-  /* id - byte 2 ~ byte 5 */
-  memcpy(frame->id, p + offset + 1, ID_LEN);
-
-  /* data - byte 6 ~ byte 13 */
-  memcpy(frame->data, p + offset + 7, DATA_LEN);
-
-  return 0;
-
-}
-
-static unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned char *buffer)
-{
-  if ((value == U2C_TR_FIRST_BYTE)
-      || (value == U2C_TR_LAST_BYTE)
-      || (value == U2C_TR_SPEC_BYTE))
-  {
-    buffer[0] = U2C_TR_SPEC_BYTE;
-    buffer[1] = value;
-    return 2;
+    frame->fd = true;
+    if (*(p + offset + 5) & 0x10)
+      frame->fd_br_switch = true;
+    if (*(p + offset + 5) & 0x40)
+      frame->fd_sid11 = true;
   }
   else
   {
-    buffer[0] = value;
-    return 1;
-  }
-}
-static unsigned char USB2CAN_TRIPLE_PushByteClear(const unsigned char value, unsigned char *buffer)
-{
-  buffer[0] = value;
-  return 1;
-}
+    if (*(p + offset + 5) & 0x40)
+      frame->rtr =  (int) true;
 
-static bool USB2CAN_TRIPLE_DLCFromLength(unsigned char *dlc, const unsigned char length)
-{
-  //nuluji bity kde je delka
-  *dlc = *dlc & 0xF0;
-  switch (length)
-  {
-  case 0: return true;
-  case 1: *dlc |= 0x01; return true;
-  case 2: *dlc |= 0x02; return true;
-  case 3: *dlc |= 0x03; return true;
-  case 4: *dlc |= 0x04; return true;
-  case 5: *dlc |= 0x05; return true;
-  case 6: *dlc |= 0x06; return true;
-  case 7: *dlc |= 0x07; return true;
-  case 8: *dlc |= 0x08; return true;
   }
-  return false;
-}
+  if (*(p + offset + 6) &  0x80)
+    frame->fd_esi = true;
+  unsigned char dlc = 0;
+  USB2CAN_TRIPLE_CANFD_DLCFromLength(&dlc, (*(p + offset + 5) & 0x0F));
+  frame->dlc = dlc;
+  /* id - byte 2 ~ byte 5 */
+  memcpy(frame->id, p + offset + 1, ID_LEN);
 
-static unsigned char USB2CAN_TRIPLE_LengthFromDLC(const unsigned char dlc)
-{
-  switch (dlc & 0x0F)
-  {
-  case 0x00: return 0;
-  case 0x01: return 1;
-  case 0x02: return 2;
-  case 0x03: return 3;
-  case 0x04: return 4;
-  case 0x05: return 5;
-  case 0x06: return 6;
-  case 0x07: return 7;
-  case 0x08: return 8;
-  }
+  /* data - byte 6  */
+  memcpy(frame->data, p + offset + 7, frame->dlc);
+
   return 0;
+
 }
 

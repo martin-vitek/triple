@@ -48,30 +48,6 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
 
 } /* END: triple_unesc() */
 
-void escape_memcpy(void *dest, void *src, size_t n)
-{
-  // Typecast src and dest addresses to (char *)
-  bool escape = false;
-  int offset = 0;
-  char *csrc = (char *)src;
-  char *cdest = (char *)dest;
-
-  // Copy contents of src[] to dest[]
-  for (int i = 0; i < n; i++)
-  {
-    if (csrc[i] == U2C_TR_SPEC_BYTE && !escape)
-    {
-      escape = true;
-      offset++;
-    }
-    else
-    {
-      cdest[i - offset] = csrc[i];
-      escape = false;
-    }
-  }
-}
-
 /*-----------------------------------------------------------------------*/
 // Triple HW (ttyRead) -> Decoder (CMD_TX_CAN)-> SockatCAN message
 //recieved message from HW put through decoder if Incoming message push into sockatCAN message a set rx flag on netdev)
@@ -85,10 +61,9 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   int                i = 0;
   struct sk_buff    *skb;
   struct can_frame   cf;
+  struct canfd_frame   cf_fd;
 
   memset(&frame, 0, sizeof(frame));
-// printk("adapter->rcount%d\n", adapter->rcount);
-//adapter->rcount
   escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
 
   unsigned char *p = frame.comm_buf;
@@ -98,6 +73,7 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
       printk("%02X ", *(p + i));
     printk("\n");
   }
+
   int ret = 0;
   if ((ret = TripleRecvHex(&frame)) < 0)
   {
@@ -138,8 +114,8 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
       printk("%02X ", frame.id[i]);
     printk("\n");
     /*===============================*/
-
   }
+
   frame.CAN_port = frame.CAN_port;//+ 1;
   frame.id_type  = frame.id_type - 1;
 
@@ -166,19 +142,35 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   else
     cf.can_dlc = 0;
 
+  
+if(!frame->fd)
+{
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
   skb = dev_alloc_skb(sizeof(struct can_frame) + sizeof(struct can_skb_priv));
 #else
   skb = dev_alloc_skb(sizeof(struct can_frame));
 #endif
-
+}
+else
+{
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+  skb = dev_alloc_skb(sizeof(struct canfd_frame) + sizeof(struct can_skb_priv));
+#else
+  skb = dev_alloc_skb(sizeof(struct canfd_frame));
+#endif
+}
   if (!skb)
   {
     return;
   }
 
   skb->dev       = adapter->devs[frame.CAN_port];
+
+if(!frame->fd)
   skb->protocol  = htons(ETH_P_CAN);
+else
+  skb->protocol  = htons(ETH_P_CANFD);
+
   skb->pkt_type  = PACKET_BROADCAST;
   skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -191,7 +183,11 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   can_skb_prv(skb)->skbcnt = 0;
 #endif
 
-  memcpy(skb_put(skb, sizeof(struct can_frame)), &cf, sizeof(struct can_frame));
+  if (!frame->fd)
+    memcpy(skb_put(skb, sizeof(struct can_frame)), &cf, sizeof(struct can_frame));
+  else
+    memcpy(skb_put(skb, sizeof(struct canfd_frame)), &cf_fd, sizeof(struct canfd_frame));
+
 
   adapter->devs[frame.CAN_port]->stats.rx_packets++;
   adapter->devs[frame.CAN_port]->stats.rx_bytes += cf.can_dlc;
@@ -263,11 +259,62 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, int channel, struct can_frame *cf)
   adapter->xhead = adapter->xbuff + actual;
   adapter->devs[channel]->stats.tx_bytes += cf->can_dlc;
 
-  /* v2.2: for fixing tx_packet bug */
+} /* END: triple_encaps() */
+
+// sockatCAN frame -> Triple HW (ttyWrite)
+void triple_encaps_fd (USB2CAN_TRIPLE *adapter, int channel, struct canfd_frame *cf)
+{
+  /*=======================================================*/
+  print_func_trace(trace_func_tran, __LINE__, __FUNCTION__);
+  /*=======================================================*/
+
+  int             i;
+  int             len = 11;
+  int             actual;
+  canid_t         id = cf->can_id;
+  TRIPLE_CAN_FRAME  triple_frame;
+
+  memset(&triple_frame, 0, sizeof(TRIPLE_CAN_FRAME));
+
+  triple_frame.CAN_port = channel + 1;
+
+  triple_frame.rtr = (cf->can_id & CAN_RTR_FLAG) ? 1 : 0;
+
+  if (cf->can_id & CAN_EFF_FLAG)
+  {
+    triple_frame.id_type = 1;
+    id &= cf->can_id & CAN_EFF_MASK;
+  }
+  else
+  {
+    triple_frame.id_type = 0;
+    id &= cf->can_id & CAN_SFF_MASK;
+  }
+
+  for (i = ID_LEN - 1; i >= 0; i--)
+  {
+    triple_frame.id[i] = id & 0xff;
+    id >>= 8;
+  }
+
+  triple_frame.dlc = cf->len;
+
+  for (i = 0; i < cf->len; i++)
+    triple_frame.data[i] = cf->data[i];
+
+  len = TripleSendHex(&triple_frame);
+  memcpy(adapter->xbuff, triple_frame.comm_buf, len);
+
+  set_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
+  actual = adapter->tty->ops->write(adapter->tty, adapter->xbuff, len);
+
+  adapter->xleft = len - actual;
+  adapter->xhead = adapter->xbuff + actual;
+  adapter->devs[channel]->stats.tx_bytes += cf->len;
+
 } /* END: triple_encaps() */
 
 
-/*-----------------------------------------------------------------------*/
 // swhatever -> Triple HW (ttyWrite)
 void triple_transmit (struct work_struct *work)
 {
@@ -289,17 +336,6 @@ void triple_transmit (struct work_struct *work)
 
   if (adapter->xleft <= 0)
   {
-    /* v2.1 */
-#if 0
-    /* Now serial buffer is almost free & we can start
-     * transmission of another packet */
-    if (netif_running(adapter->devs))
-      adapter->devs->stats.tx_packets++;
-    if (netif_running(adapter->devs[1]))
-      adapter->devs[1]->stats.tx_packets++;
-#endif
-
-    /* v2.2 */
     adapter->devs[adapter->current_channel]->stats.tx_packets++;
 
     clear_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
