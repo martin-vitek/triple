@@ -58,6 +58,9 @@ static void print_usage (char *prg);
 static void child_handler (int signum);
 static const char *look_up_can_speed (int speed);
 static void run_interactive ();
+static void print_bittiming();
+static void parse_bittiming();
+static void print_speed();
 
 
 /* v2.1: change some variable to global (for end process) */
@@ -120,7 +123,7 @@ int main (int argc, char *argv[])
       break;
     case 't':// print Speeds
       print_speed();
-      break
+      break;
     case 'h'://help
     case '?':
     default:
@@ -368,12 +371,14 @@ static const char *look_up_can_speed (int speed)
 } /* END: look_up_can_speed() */
 /* END: print_version() */
 /*------------------------------------------------------------------------------------*/
-//unsigned int NBRP, unsigned int NTSEG1, unsigned int NTSEG2, unsigned int NSJW,
-// unsigned int DBRP, unsigned int DTSEG1, unsigned int DTSEG2, unsigned int DSJW, unsigned int TDCO, unsigned int TDCV, unsigned int
+static void parse_bittiming()
+{
+ //TODO
+}
 static void print_bittiming()
 {
-  fprintf(stderr, "For detailed information see MCP2517FD datasheet\n")
-  fprintf(stderr, "<bittiming options> --> ./tripled_64 -c[NBRP]:[NTSEG1]:[NTSEG2]:[NSJW]:[DBRP]:[DTSEG1]:[DTSEG2]:[DSJW]:[TDCO]:[TDCV]:[TDCMOD]\n")
+  fprintf(stderr, "For detailed information see MCP2517FD datasheet\n");
+  fprintf(stderr, "<bittiming options> --> ./tripled_64 -c[NBRP]:[NTSEG1]:[NTSEG2]:[NSJW]:[DBRP]:[DTSEG1]:[DTSEG2]:[DSJW]:[TDCO]:[TDCV]:[TDCMOD]\n");
   fprintf(stderr, "Nominal bittiming\n");
   fprintf(stderr, "NBRP - Nominal Baud Rate Prescaler\n");
   fprintf(stderr, "NTSEG1 - Time Segment 1\n");
