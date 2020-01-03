@@ -113,8 +113,7 @@ int TripleRecvHex(TRIPLE_CAN_FRAME *frame)
   }
   if (*(p + offset + 6) &  0x80)
     frame->fd_esi = true;
-  unsigned char dlc = 0;
- 
+  
   frame->dlc = USB2CAN_TRIPLE_CANFD_LengthFromDLC((*(p + offset + 5) & 0x0F));
   /* id - byte 2 ~ byte 5 */
   memcpy(frame->id, p + offset + 1, ID_LEN);

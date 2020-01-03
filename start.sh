@@ -12,11 +12,11 @@ sleep 1
 sudo sudo ip link set can1 up qlen 1000
 sleep 1
 sudo sudo ip link set canfd2 up qlen 1000
-sleep 5
-sudo ./tripled_64 -s250 ttyACM1 can3 can4 canfd5
-sudo sudo ip link set can3 up qlen 1000
-sleep 1
-sudo sudo ip link set can4 up qlen 1000
-sleep 1
-sudo sudo ip link set canfd5 up qlen 1000
-sleep 1
+#sleep 5
+#sudo ./tripled_64 -s250 ttyACM1 can3 can4 canfd5
+#sudo sudo ip link set can3 up qlen 1000
+#sleep 1
+#sudo sudo ip link set can4 up qlen 1000
+#sleep 1
+#sudo sudo ip link set canfd5 up qlen 1000
+#sleep 1

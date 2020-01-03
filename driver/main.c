@@ -62,8 +62,8 @@ bool trace_func_main = false;
 bool trace_func_tran = false;
 bool trace_func_pars = false;
 bool show_debug_main = false;
-bool show_debug_tran = true;
-bool show_debug_pars = true;
+bool show_debug_tran = false;
+bool show_debug_pars = false;
 
 int maxdev = 3;
 __initconst const char banner[] = "USB2CAN TRIPLE SocketCAN interface driver\n";
