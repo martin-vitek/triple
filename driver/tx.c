@@ -48,30 +48,6 @@ void triple_unesc (USB2CAN_TRIPLE *adapter, unsigned char s)
 
 } /* END: triple_unesc() */
 
-void escape_memcpy(void *dest, void *src, size_t n)
-{
-  // Typecast src and dest addresses to (char *)
-  bool escape = false;
-  int offset = 0;
-  char *csrc = (char *)src;
-  char *cdest = (char *)dest;
-
-  // Copy contents of src[] to dest[]
-  for (int i = 0; i < n; i++)
-  {
-    if (csrc[i] == U2C_TR_SPEC_BYTE && !escape)
-    {
-      escape = true;
-      offset++;
-    }
-    else
-    {
-      cdest[i - offset] = csrc[i];
-      escape = false;
-    }
-  }
-}
-
 /*-----------------------------------------------------------------------*/
 // Triple HW (ttyRead) -> Decoder (CMD_TX_CAN)-> SockatCAN message
 //recieved message from HW put through decoder if Incoming message push into sockatCAN message a set rx flag on netdev)
@@ -85,102 +61,171 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   int                i = 0;
   struct sk_buff    *skb;
   struct can_frame   cf;
+  struct canfd_frame   cf_fd;
 
   memset(&frame, 0, sizeof(frame));
-// printk("adapter->rcount%d\n", adapter->rcount);
-//adapter->rcount
   escape_memcpy(frame.comm_buf, adapter->rbuff, adapter->rcount);
 
   unsigned char *p = frame.comm_buf;
-  if (show_debug_tran)
-  {
-    for (i = 0; i < COM_BUF_LEN; i++)
-      printk("%02X ", *(p + i));
-    printk("\n");
-  }
+
+
   int ret = 0;
   if ((ret = TripleRecvHex(&frame)) < 0)
   {
     if (show_debug_tran)
-    {
       printk("triple : bump : parse fail %d.\n", ret);
-    }
     return;
   }
 
   if (ret == 1)
   {
     if (show_debug_tran)
-    {
-      printk("U2C_TR_CMD_STATUS\n");
-    }
+     // printk("U2C_TR_CMD_STATUS\n");
     return;
   }
   else if (ret == 2)
   {
     if (show_debug_tran)
-    {
       printk("U2C_TR_CMD_FW_VER\n");
-    }
     return;
-
   }
-  /*===============================*/
-  static int cnt = 1;
   if (show_debug_tran)
   {
-    printk("%d. Data: ", cnt++);
-    for (i = 0; i < DATA_LEN; i++)
-      printk("%02X ", frame.data[i]);
-    printk("| ");
-    printk("ID: ");
-    for (i = 0; i < ID_LEN; i++)
-      printk("%02X ", frame.id[i]);
+    for (i = 0; i < COM_BUF_LEN; i++)
+      printk("%02X ", *(p + i));
     printk("\n");
-    /*===============================*/
-
   }
-  frame.CAN_port = frame.CAN_port;//+ 1;
-  frame.id_type  = frame.id_type - 1;
-
-  cf.can_id = 0;
-
-  if (frame.rtr)
-    cf.can_id |= CAN_RTR_FLAG;
-
-  if (frame.id_type)
-    cf.can_id |= CAN_EFF_FLAG;
-
-  for (i = 0; i < ID_LEN; i++)
-    cf.can_id |= (frame.id[ID_LEN - 1 - i] << (i * 8));
-
-  /* RTR frames may have a dlc > 0 but they never have any data bytes */
-  //*(u64 *)(&cf.data) = 0;
-
-  if (!frame.rtr)
+  if (!frame.fd)
   {
-    cf.can_dlc = frame.dlc;
-    for (i = 0; i < DATA_LEN; i++)
-      cf.data[i] = frame.data[i];
+    /*===============================*/
+    static int cnt = 1;
+    if (show_debug_tran)
+    {
+      printk("%d. Data: ", cnt++);
+      for (i = 0; i < DATA_LEN; i++)
+        printk("%02X ", frame.data[i]);
+      printk("| ");
+      printk("ID: ");
+      for (i = 0; i < ID_LEN; i++)
+        printk("%02X ", frame.id[i]);
+      printk("\n");
+      /*===============================*/
+    }
+
+    frame.CAN_port = frame.CAN_port;//+ 1;
+    frame.id_type  = frame.id_type - 1;
+
+    cf.can_id = 0;
+
+    if (frame.rtr)
+      cf.can_id |= CAN_RTR_FLAG;
+
+    if (frame.id_type)
+      cf.can_id |= CAN_EFF_FLAG;
+
+    for (i = 0; i < ID_LEN; i++)
+      cf.can_id |= (frame.id[ID_LEN - 1 - i] << (i * 8));
+
+    /* RTR frames may have a dlc > 0 but they never have any data bytes */
+    //*(u64 *)(&cf.data) = 0;
+
+    if (!frame.rtr)
+    {
+      cf.can_dlc = frame.dlc;
+      for (i = 0; i < DATA_LEN; i++)
+        cf.data[i] = frame.data[i];
+    }
+    else
+      cf.can_dlc = 0;
+
   }
   else
-    cf.can_dlc = 0;
+  {
+    /*===============================*/
+    static int cnt = 1;
+    if (show_debug_tran)
+    {
+      printk("%d. Data: ", cnt++);
+      for (i = 0; i < DATA_FD_LEN; i++)
+        printk("%02X ", frame.data[i]);
+      printk("| ");
+      printk("ID: ");
+      for (i = 0; i < ID_LEN; i++)
+        printk("%02X ", frame.id[i]);
+      printk("\n");
+      /*===============================*/
+    }
 
+    frame.CAN_port = frame.CAN_port;//+ 1;
+    frame.id_type  = frame.id_type - 1;
+
+    cf_fd.can_id = 0;
+
+    if (frame.rtr)
+      cf_fd.can_id |= CAN_RTR_FLAG;
+
+    if (frame.id_type)
+      cf_fd.can_id |= CAN_EFF_FLAG;
+
+    if (frame.fd_br_switch )
+    {
+      cf_fd.flags |= CANFD_BRS;
+    }
+
+    if (frame.fd_esi )
+    {
+      cf_fd.flags |=  CANFD_ESI;
+    }
+
+    for (i = 0; i < ID_LEN; i++)
+      cf_fd.can_id |= (frame.id[ID_LEN - 1 - i] << (i * 8));
+
+    /* RTR frames may have a dlc > 0 but they never have any data bytes */
+    //*(u64 *)(&cf.data) = 0;
+
+    if (!frame.rtr)
+    {
+      cf_fd.len = frame.dlc;
+      for (i = 0; i < DATA_FD_LEN; i++)
+        cf_fd.data[i] = frame.data[i];
+    }
+    else
+      cf_fd.len = 0;
+
+  }
+
+//---------------------------------------------------------------------------------------------------------
+  if (!frame.fd)
+  {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
-  skb = dev_alloc_skb(sizeof(struct can_frame) + sizeof(struct can_skb_priv));
+    skb = dev_alloc_skb(sizeof(struct can_frame) + sizeof(struct can_skb_priv));
 #else
-  skb = dev_alloc_skb(sizeof(struct can_frame));
+    skb = dev_alloc_skb(sizeof(struct can_frame));
 #endif
+  }
+  else
+  {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+    skb = dev_alloc_skb(sizeof(struct canfd_frame) + sizeof(struct can_skb_priv));
+#else
+    skb = dev_alloc_skb(sizeof(struct canfd_frame));
+#endif
+  }
 
   if (!skb)
   {
     return;
   }
 
+  if (!frame.fd)
+    skb->protocol  = htons(ETH_P_CAN);
+  else
+    skb->protocol  = htons(ETH_P_CANFD);
+
   skb->dev       = adapter->devs[frame.CAN_port];
-  skb->protocol  = htons(ETH_P_CAN);
   skb->pkt_type  = PACKET_BROADCAST;
   skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
   can_skb_reserve(skb);
@@ -191,7 +236,11 @@ void triple_bump (USB2CAN_TRIPLE *adapter)
   can_skb_prv(skb)->skbcnt = 0;
 #endif
 
-  memcpy(skb_put(skb, sizeof(struct can_frame)), &cf, sizeof(struct can_frame));
+  if (!frame.fd)
+    memcpy(skb_put(skb, sizeof(struct can_frame)), &cf, sizeof(struct can_frame));
+  else
+    memcpy(skb_put(skb, sizeof(struct canfd_frame)), &cf_fd, sizeof(struct canfd_frame));
+
 
   adapter->devs[frame.CAN_port]->stats.rx_packets++;
   adapter->devs[frame.CAN_port]->stats.rx_bytes += cf.can_dlc;
@@ -263,11 +312,82 @@ void triple_encaps (USB2CAN_TRIPLE *adapter, int channel, struct can_frame *cf)
   adapter->xhead = adapter->xbuff + actual;
   adapter->devs[channel]->stats.tx_bytes += cf->can_dlc;
 
-  /* v2.2: for fixing tx_packet bug */
+} /* END: triple_encaps() */
+
+// sockatCAN frame -> Triple HW (ttyWrite)
+void triple_encaps_fd (USB2CAN_TRIPLE *adapter, int channel, struct canfd_frame *cf)
+{
+  /*=======================================================*/
+  print_func_trace(trace_func_tran, __LINE__, __FUNCTION__);
+  /*=======================================================*/
+
+  int             i;
+  int             len = 11;
+  int             actual;
+  canid_t         id = cf->can_id;
+  TRIPLE_CAN_FRAME  triple_frame;
+
+  memset(&triple_frame, 0, sizeof(TRIPLE_CAN_FRAME));
+
+
+  triple_frame.fd = true;
+  triple_frame.CAN_port = channel + 1;
+
+  //RRS insted of RTR, same flag in linux ??
+  triple_frame.rtr = (cf->can_id & CAN_RTR_FLAG) ? 1 : 0;
+
+  if (cf->can_id & CAN_EFF_FLAG)
+  {
+    triple_frame.id_type = 1;
+    id &= cf->can_id & CAN_EFF_MASK;
+  }
+  else
+  {
+    triple_frame.id_type = 0;
+    id &= cf->can_id & CAN_SFF_MASK;
+  }
+
+  if (cf->flags & CANFD_BRS)
+  {
+    triple_frame.fd_br_switch = true;
+  }
+
+  if (cf->flags & CANFD_ESI)
+  {
+    triple_frame.fd_esi = true;
+  }
+
+  for (i = ID_LEN - 1; i >= 0; i--)
+  {
+    triple_frame.id[i] = id & 0xff;
+    id >>= 8;
+  }
+
+  triple_frame.dlc = cf->len;
+
+  for (i = 0; i < cf->len; i++)
+    triple_frame.data[i] = cf->data[i];
+
+  len = TripleSendHex(&triple_frame);
+  memcpy(adapter->xbuff, triple_frame.comm_buf, len);
+
+  if (show_debug_tran)
+  {
+    for (i = 0; i < COM_BUF_LEN; i++)
+      printk("%02X ", *(triple_frame.comm_buf + i));
+    printk("GREP#1\n");
+  }
+
+  set_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);
+  actual = adapter->tty->ops->write(adapter->tty, adapter->xbuff, len);
+
+  adapter->xleft = len - actual;
+  adapter->xhead = adapter->xbuff + actual;
+  adapter->devs[channel]->stats.tx_bytes += cf->len;
+
 } /* END: triple_encaps() */
 
 
-/*-----------------------------------------------------------------------*/
 // swhatever -> Triple HW (ttyWrite)
 void triple_transmit (struct work_struct *work)
 {
@@ -289,17 +409,6 @@ void triple_transmit (struct work_struct *work)
 
   if (adapter->xleft <= 0)
   {
-    /* v2.1 */
-#if 0
-    /* Now serial buffer is almost free & we can start
-     * transmission of another packet */
-    if (netif_running(adapter->devs))
-      adapter->devs->stats.tx_packets++;
-    if (netif_running(adapter->devs[1]))
-      adapter->devs[1]->stats.tx_packets++;
-#endif
-
-    /* v2.2 */
     adapter->devs[adapter->current_channel]->stats.tx_packets++;
 
     clear_bit(TTY_DO_WRITE_WAKEUP, &adapter->tty->flags);

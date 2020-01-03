@@ -16,14 +16,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Send feedback to <linux-can@vger.kernel.org>
- *
+ * Send feedback to <koupy@canlab.cz>
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,12 +36,10 @@
 #include <linux/version.h>
 
 #include "version.h"
-
-/*====================================================================================*/
-
+#include "tripled_helper.h"
 /*
- * Beform 3.1.0, the ldisc number is private define
- * in kernel, usrspace application cannot use it.
+ * Before 3.1.0, the ldisc number is private define
+ * in kernel, userspace application cannot use it.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0)
 #define N_TRIPLE (NR_LDISCS - 1)
@@ -54,93 +47,6 @@
 
 #define   DAEMON_NAME      "tripled"
 #define   TTYPATH_LENGTH   64
-
-enum CAN_SPEED
-{
-  SPEED_10k = 10,
-  SPEED_20k = 20,
-  SPEED_33_3k = 33,
-  SPEED_50k = 50,
-  SPEED_62_5k = 62,
-  SPEED_83_3k = 83,
-  SPEED_100k  = 100,
-  SPEED_125k  = 125,
-  SPEED_250k  = 250,
-  SPEED_500k  = 500,
-  SPEED_1M  = 1000,
-  SPEED_USR = 0,
-};
-
-enum CAN_FD_SPEED
-{
-  CAN_USR_SPEED = 0,
-  CAN_125K_250K = 125250,
-  CAN_125K_500K = 125500,
-  CAN_125K_833K = 125833,
-  CAN_125K_1M   = 1251000,
-  CAN_125K_1M5  = 1251500,
-  CAN_125K_2M   = 1252000,
-  CAN_125K_3M   = 1253000,
-  CAN_125K_4M   = 1254000,
-  CAN_125K_5M   = 1255000,
-  CAN_125K_6M7  = 1256700,
-  CAN_125K_8M   = 1258000,
-  CAN_125K_10M  = 1259999,
-
-  CAN_250K_500K = 250500,
-  CAN_250K_833K = 250833,
-  CAN_250K_1M   = 2501000,
-  CAN_250K_1M5  = 2501500,
-  CAN_250K_2M   = 2502000,
-  CAN_250K_3M   = 2503000,
-  CAN_250K_4M   = 2504000,
-  CAN_250K_5M   = 2505000,
-  CAN_250K_6M7  = 2506700,
-  CAN_250K_8M   = 2508000,
-  CAN_250K_10M  = 2509999,
-
-  CAN_500K_833K = 500833,
-  CAN_500K_1M   = 5001000,
-  CAN_500K_1M5  = 5001500,
-  CAN_500K_2M   = 5002000,
-  CAN_500K_3M   = 5003000,
-  CAN_500K_4M   = 5004000,
-  CAN_500K_5M   = 5005000,
-  CAN_500K_6M7  = 5006700,
-  CAN_500K_8M   = 5008000,
-  CAN_500K_10M  = 5009999,
-
-  CAN_1000K_1M5 = 10001500,
-  CAN_1000K_2M  = 10002000,
-  CAN_1000K_3M  = 10003000,
-  CAN_1000K_4M  = 10004000,
-  CAN_1000K_5M  = 10005000,
-  CAN_1000K_6M7 = 10006700,
-  CAN_1000K_8M  = 10008000,
-  CAN_1000K_10M = 10009999,
-};
-
-const unsigned char U2C_TR_FIRST_BYTE = 0x0F;
-const unsigned char  U2C_TR_LAST_BYTE = 0xEF;
-
-const unsigned char U2C_TR_SPEC_BYTE = 0x1F;
-
-const unsigned char   U2C_TR_CMD_TX_CAN   = 0x81;
-const unsigned char   U2C_TR_CMD_TX_CAN_TS  = 0x82;
-const unsigned char   U2C_TR_CMD_MARKER   = 0x87;
-const unsigned char   U2C_TR_CMD_SETTINGS   = 0x88;
-const unsigned char   U2C_TR_CMD_BITTIMING  = 0x89;
-const unsigned char   U2C_TR_CMD_STATUS       = 0x8A;
-const unsigned char   U2C_TR_CMD_TIMESTAMP  = 0x8B;
-const unsigned char   U2C_TR_CMD_FW_VER   = 0x90;
-const unsigned char   U2C_TR_CMD_SPEED_DOWN  = 0x91;
-const unsigned char   U2C_TR_CMD_SPEED_UP    = 0x92;
-
-bool USB2CAN_TRIPLE_GetFWVersion(int fd);
-bool USB2CAN_TRIPLE_SendCANSpeed(unsigned int port, int speed, bool listen_only, int fd);
-bool USB2CAN_TRIPLE_SendFDCANSpeed(int speed, bool listen_only, bool esi, bool iso_crc, int fd);
-void USB2CAN_TRIPLE_SendTimeStampMode(bool mode, int fd);
-void USB2CAN_TRIPLE_Init(int speed, int comport);
 
 static int  tripled_running;
 static int  exit_code;
@@ -151,6 +57,8 @@ static void print_version (char *prg);
 static void print_usage (char *prg);
 static void child_handler (int signum);
 static const char *look_up_can_speed (int speed);
+static void run_interactive ();
+
 
 /* v2.1: change some variable to global (for end process) */
 int             port;
@@ -160,9 +68,6 @@ speed_t         old_ispeed;
 speed_t         old_ospeed;
 struct termios  tios;
 
-/*----------------------------------------------------------------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------------------------------------------------------------*/
 int main (int argc, char *argv[])
 {
   int             sp;
@@ -176,34 +81,47 @@ int main (int argc, char *argv[])
   char            buf[IFNAMSIZ + 1];
   char const     *devprefix = "/dev/";
 
-
   ldisc = N_TRIPLE;
-
 
   name[0] = NULL;
   name[1] = NULL;
   name[2] = NULL;
   ttypath[0] = '\0';
-  while ((opt = getopt(argc, argv, "s:n:r:dvwh?fc:")) != -1)
+  while ((opt = getopt(argc, argv, "s:n:l:iduvwh?fc:")) != -1)
   {
     switch (opt)
     {
     case 's'://set speed
       speed = atoi(optarg);
       break;
-    case 'F':
+    case 'n'://set names
+      break;
+    case 'l'://set listen-only
+      break;
+    case 'i': //interactive mode
+      break;
+    case 'd'://run a deamon
       run_as_daemon = 0;
       break;
-    case 'v':
+    case 'v':// print version
       if (argc == 3)
       {
         print_version(argv[2]);
       }
-
-    case 'h':
-    case 'l': //listen only
-
+    case 'w':// print FW version
       break;
+    case 'f':// CAN FD on
+      break;
+    case 'c':// User defined CAND FD bittiming
+      parse_bittiming();
+      break;
+    case 'u':
+      print_bittiming();
+      break;
+    case 't':// print Speeds
+      print_speed();
+      break
+    case 'h'://help
     case '?':
     default:
       print_usage(argv[0]);
@@ -258,11 +176,6 @@ int main (int argc, char *argv[])
   /* Reset UART settings */
   cfmakeraw(&tios);
 
-  //tios.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXOFF);
-  //tios.c_oflag &= ~(OPOST);
-  //tios.c_cflag |= (CS8);
-  //tios.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-
   /* Reset UART settings */
   tios.c_iflag &= ~IXOFF;
   tios.c_cflag &= ~CRTSCTS;
@@ -284,7 +197,7 @@ int main (int argc, char *argv[])
   sleep(1);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed, false, fd);
   sleep(1);
-  USB2CAN_TRIPLE_SendFDCANSpeed(250500, false, false, false, fd);
+  USB2CAN_TRIPLE_SendFDCANSpeed(2502000, false, false, false, fd);
   sleep(1);
   USB2CAN_TRIPLE_GetFWVersion(fd);
   sleep(2);
@@ -294,7 +207,6 @@ int main (int argc, char *argv[])
     perror("ioctl TIOCSETD");
     exit(EXIT_FAILURE);
   }
-  /****************************************************************************************************/
   /************* try to rename the created netdevice **************************************************/
   for (channel = 0; channel < 3; channel++)
   {
@@ -375,10 +287,8 @@ int main (int argc, char *argv[])
   closelog();
 
   return exit_code;
-  /*--------------------------------------------------------------*/
 } /* END: main() */
-/*----------------------------------------------------------------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------------------------------------------------------------*/
+
 static void print_version (char *prg)
 {
   int          com_port;
@@ -396,11 +306,93 @@ static void print_version (char *prg)
   }
   exit(EXIT_SUCCESS);
 
-} /* END: print_version() */
-/*------------------------------------------------------------------------------------*/
-static void print_speed (char *prg)
+}
+
+static void run_interactive ()
 {
-  fprintf(stderr, "\nUsage: %s \n", prg);
+  int c;
+
+  printf("Should this deamon run in foreground ? (y/n)");
+  c = getchar();
+  if (c != 0 && c == 'y')
+  {
+    printf("YOU PUT IN ");
+    putchar(c);
+  }
+}
+
+static void child_handler (int signum)
+{
+  switch (signum)
+  {
+  case SIGUSR1:
+    /* exit parent */
+    exit(EXIT_SUCCESS);
+    break;
+  case SIGALRM:
+  case SIGCHLD:
+    syslog(LOG_NOTICE, "received signal %i on %s", signum, ttypath);
+    exit_code = EXIT_FAILURE;
+    tripled_running = 0;
+    break;
+  case SIGINT:
+  case SIGTERM:
+    syslog(LOG_NOTICE, "received signal %i on %s", signum, ttypath);
+    exit_code = EXIT_SUCCESS;
+    tripled_running = 0;
+    break;
+  }
+
+} /* END: child_handler() */
+
+static const char *look_up_can_speed (int speed)
+{
+  switch (speed)
+  {
+
+  case 10:   return "10 KBPS";
+  case 20:   return "20 KBPS";
+  case 33:   return "33 KBPS";
+  case 50:   return "50 KBPS";
+  case 62:   return "62 KBPS";
+  case 83:   return "83 KBPS";
+  case 100:   return "100 KBPS";
+  case 125:   return "125 KBPS";
+  case 250:   return "250 KBPS";
+  case 500:   return "500 KBPS";
+  case 1000:   return "1   MBPS";
+
+  default:  return "unknown";
+  }
+
+} /* END: look_up_can_speed() */
+/* END: print_version() */
+/*------------------------------------------------------------------------------------*/
+//unsigned int NBRP, unsigned int NTSEG1, unsigned int NTSEG2, unsigned int NSJW,
+// unsigned int DBRP, unsigned int DTSEG1, unsigned int DTSEG2, unsigned int DSJW, unsigned int TDCO, unsigned int TDCV, unsigned int
+static void print_bittiming()
+{
+  fprintf(stderr, "For detailed information see MCP2517FD datasheet\n")
+  fprintf(stderr, "<bittiming options> --> ./tripled_64 -c[NBRP]:[NTSEG1]:[NTSEG2]:[NSJW]:[DBRP]:[DTSEG1]:[DTSEG2]:[DSJW]:[TDCO]:[TDCV]:[TDCMOD]\n")
+  fprintf(stderr, "Nominal bittiming\n");
+  fprintf(stderr, "NBRP - Nominal Baud Rate Prescaler\n");
+  fprintf(stderr, "NTSEG1 - Time Segment 1\n");
+  fprintf(stderr, "NTSEG2 - Time Segment 2\n");
+  fprintf(stderr, "NSJW - Synchronization Jump Width \n");
+  fprintf(stderr, "Data bittiming\n");
+  fprintf(stderr, "DBRP - Data Baud Rate Prescaler\n");
+  fprintf(stderr, "DTSEG1 - Time Segment 1\n");
+  fprintf(stderr, "DTSEG2 - Time Segment 2\n");
+  fprintf(stderr, "DSJW - Synchronzation Jump Width\n");
+  fprintf(stderr, "TDCO- Transmitter Delay Compensation Offset\n");
+  fprintf(stderr, "TDCV - Transmitter Delay Compensation Value\n");
+  fprintf(stderr, "TDCMOD - Transmitter Delay Compensation Mode\n");
+  fprintf(stderr, "TDCMOD options: 0 -> off, 1 -> manual, 2 -> auto\n");
+  fprintf(stderr, "\n");
+  exit(EXIT_FAILURE);
+}
+static void print_speed()
+{
   fprintf(stderr, "--------------------CAN 2.0--------------------\n");
   fprintf(stderr, "               1 -> 10: 10 KBPS\n");
   fprintf(stderr, "               2 -> 20: 20 KBPS\n");
@@ -468,214 +460,24 @@ static void print_speed (char *prg)
 static void print_usage (char *prg)
 {
   fprintf(stderr, "\nUsage: %s [options] <tty>\\n\n", prg);
-  fprintf(stderr, "         -d         (stay in foreground; no daemonize)\n");
-  fprintf(stderr, "         -h         (show this help page)\n");
-  fprintf(stderr, "         -v         (show version info)\n");
-  fprintf(stderr, "         -w         (show FW version info <requires connected device>)\n");
-  fprintf(stderr, "         -s         (show version info)\n");
-  fprintf(stderr, "         -n[name]:[name]:[name]         (show version info)\n");
-  fprintf(stderr, "         -r[t/f]:[t/f]:[t/f] read-only mode (t-true, f-false)\n");
-  fprintf(stderr, "         -f         (CAN FD on port 3)\n");
-  fprintf(stderr, "         -c         (User defined CAN FD bittiming)\n");
+  fprintf(stderr, "         -d                          (stay in foreground; no daemonize)\n");
+  fprintf(stderr, "         -h                          (show this help page)\n");
+  fprintf(stderr, "         -v                          (show version info)\n");
+  fprintf(stderr, "         -t                          (show supported CAN 2.0 and CAN FD speeds)\n");
+  fprintf(stderr, "         -u                          (show bittimng options and format)\n");
+  fprintf(stderr, "         -i                          (interactive mode))\n");
+  fprintf(stderr, "         -s[port1]:[port2]:[port3]   (set speed: see CAN, see ./tripled_64 -t for available speeds)\n");
+  fprintf(stderr, "         -n[port1]:[port2]:[port3]   (set name of interface)\n");
+  fprintf(stderr, "         -l[1/0]:[1/0]:[1/0]         (listen-only mode )\n");
+  fprintf(stderr, "         -f                          (CAN FD on port 3)\n");
+  fprintf(stderr, "         -c[bittiming options]       (User defined CAN FD bittiming, see ./tripled_64 -u)\n");
   fprintf(stderr, "\nExamples:\n");
   fprintf(stderr, "Deamon can be used in interactive mode or you can use parametrs\n");
   fprintf(stderr, "Interactive mode : ./tripled_64 -i\n\n");
-  fprintf(stderr, "tripled_64 -s[port1]:[port2]:[port3] /dev/ttyACM0\n");
-  fprintf(stderr, "tripled_64 -s /dev/ttyACM0\n");
-  fprintf(stderr, "tripled_64 -s250 /dev/ttyACM0 can0 \n");
+  fprintf(stderr, "tripled_64 -s1:2:3 /dev/ttyACM0\n");
+  fprintf(stderr, "tripled_64 /dev/ttyACM0\n");
+  fprintf(stderr, "tripled_64 dev/ttyACM0 -ncan0:can1:can2\n");
   fprintf(stderr, "\n");
   exit(EXIT_FAILURE);
 
 } /* END: print_usage() */
-/*------------------------------------------------------------------------------------*/
-static void run_interactive ()
-{
-
-
-}
-
-/*------------------------------------------------------------------------------------*/
-static void child_handler (int signum)
-{
-  switch (signum)
-  {
-  case SIGUSR1:
-    /* exit parent */
-    exit(EXIT_SUCCESS);
-    break;
-  case SIGALRM:
-  case SIGCHLD:
-    syslog(LOG_NOTICE, "received signal %i on %s", signum, ttypath);
-    exit_code = EXIT_FAILURE;
-    tripled_running = 0;
-    break;
-  case SIGINT:
-  case SIGTERM:
-    syslog(LOG_NOTICE, "received signal %i on %s", signum, ttypath);
-    exit_code = EXIT_SUCCESS;
-    tripled_running = 0;
-    break;
-  }
-
-} /* END: child_handler() */
-
-
-
-/*------------------------------------------------------------------------------------*/
-/*------------------------------------------------------------------------------------*/
-static const char *look_up_can_speed (int speed)
-{
-  switch (speed)
-  {
-
-  case 10:   return "10 KBPS";
-  case 20:   return "20 KBPS";
-  case 33:   return "33 KBPS";
-  case 50:   return "50 KBPS";
-  case 62:   return "62 KBPS";
-  case 83:   return "83 KBPS";
-  case 100:   return "100 KBPS";
-  case 125:   return "125 KBPS";
-  case 250:   return "250 KBPS";
-  case 500:   return "500 KBPS";
-  case 1000:   return "1   MBPS";
-
-  default:  return "unknown";
-  }
-
-} /* END: look_up_can_speed() */
-
-/*|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||*/
-/*|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||*/
-unsigned char USB2CAN_TRIPLE_PushByte(const unsigned char value, unsigned char *buffer)
-{
-  if ((value == U2C_TR_FIRST_BYTE)
-      || (value == U2C_TR_LAST_BYTE)
-      || (value == U2C_TR_SPEC_BYTE))
-  {
-    buffer[0] = U2C_TR_SPEC_BYTE;
-    buffer[1] = value;
-    return 2;
-  }
-  else
-  {
-    buffer[0] = value;
-    return 1;
-  }
-}
-
-bool USB2CAN_TRIPLE_GetFWVersion(int fd)
-{
-  unsigned char buffer[16];
-  int i = 0;
-  buffer[0] = U2C_TR_FIRST_BYTE;
-  buffer[1] = 4;
-  USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_FW_VER, &buffer[2]);
-  buffer[3] = U2C_TR_LAST_BYTE;
-
-// printf("USB2CAN_TRIPLE_GetFWVersion\n");
-
-  if (write(fd, buffer, 4) <= 0)
-  {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-  return true;
-}
-
-bool USB2CAN_TRIPLE_SendCANSpeed(unsigned int port, int speed, bool listen_only, int fd)
-{
-  unsigned char buffer[16];
-  unsigned char length = 3;
-  int i = 0;
-  buffer[0] = U2C_TR_FIRST_BYTE;
-  buffer[1] = 1;
-  buffer[2] = U2C_TR_CMD_SETTINGS;
-  length += USB2CAN_TRIPLE_PushByte(port, &buffer[length]);
-  u_int16_t s = speed;
-  length += USB2CAN_TRIPLE_PushByte(s >> 8, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(s >> 0, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(listen_only ? 1 : 0, &buffer[length]);
-  buffer[length] = U2C_TR_LAST_BYTE;
-  length++;
-  buffer[1] = length;
-
-  //printf("USB2CAN_TRIPLE_SendCANSpeed\n");
-
-  if (write(fd, buffer, length) <= 0)
-  {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-  return true;
-}
-
-bool USB2CAN_TRIPLE_SendFDCANSpeed(int speed, bool listen_only, bool esi, bool iso_crc, int fd)
-{
-  unsigned char buffer[16];
-  unsigned char length = 3;
-  int i = 0;
-  buffer[0] = U2C_TR_FIRST_BYTE;
-  buffer[1] = 1;
-  buffer[2] = U2C_TR_CMD_SETTINGS;
-  length += USB2CAN_TRIPLE_PushByte(3, &buffer[length]);
-  u_int32_t s = (u_int32_t)speed;
-  length += USB2CAN_TRIPLE_PushByte(s >> 24, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(s >> 16, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(s >> 8, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(s >> 0, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(listen_only ? 1 : 0, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(iso_crc ? 1 : 0, &buffer[length]);
-  length += USB2CAN_TRIPLE_PushByte(esi ? 1 : 0, &buffer[length]);
-  buffer[length] = U2C_TR_LAST_BYTE;
-  length++;
-  buffer[1] = length;
-
-  //printf("USB2CAN_TRIPLE_SendFDCANSpeed\n");
-  if (write(fd, buffer, length) <= 0)
-  {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-  return true;
-}
-
-void USB2CAN_TRIPLE_SendTimeStampMode(bool mode, int fd)
-{
-  unsigned char buffer[16];
-  unsigned char l = 3;
-  int i = 0;
-  buffer[0] = U2C_TR_FIRST_BYTE;
-  buffer[2] = U2C_TR_CMD_TIMESTAMP;
-  l += USB2CAN_TRIPLE_PushByte((unsigned char)mode, &buffer[l]);
-  buffer[l] = U2C_TR_LAST_BYTE;
-  buffer[1] = l + 1;
-
-// printf("USB2CAN_TRIPLE_SendTimeStampMode\n");
-
-  if (write(fd, buffer, l + 1) <= 0)
-  {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-  return;
-}
-
-int KBaud2Int(int speed)
-{
-  switch (speed)
-  {
-  case 10:   return 0;
-  case 20:   return 1;
-  case 33:   return 2;
-  case 50:   return 3;
-  case 62:   return 4;
-  case 83:   return 5;
-  case 100:  return 6;
-  case 125:  return 7;
-  case 250:  return 8;
-  case 500:  return 9;
-  case 1000: return 10;
-  }
-  return -1;
-}
