@@ -1,7 +1,7 @@
 # USB2CAN
 
 SLCAN like driver for PIC based USB to CAN adapter USB2CAN Triple from Canlab s.r.o.
-
+For more info https://github.com/canlab-cz/triple/wiki/Manual
 
 You can find HW here : www.canlab.cz
 
