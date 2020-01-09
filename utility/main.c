@@ -104,7 +104,7 @@ int main (int argc, char *argv[])
 
   char *tmp[3];
 
-  while ((opt = getopt(argc, argv, "s:n:l:duvwh?f:c:")) != -1)
+  while ((opt = getopt(argc, argv, "s:n:l:duvtwh?f:c:")) != -1)
   {
     switch (opt)
     {
@@ -142,6 +142,7 @@ int main (int argc, char *argv[])
       {
         print_version(argv[2]);
       }
+      break;
     case 'f':// CAN FD on
       can_fd = true;
       tmp[i] = strtok(optarg, ":");
