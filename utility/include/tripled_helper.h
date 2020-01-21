@@ -6,19 +6,19 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define   TRIPLE_MTU    100 //40
-#define   TRIPLE_MAGIC  0x739A//0x729B
+#define  TRIPLE_MTU                 128 //40
+#define  TRIPLE_MAGIC               0x739A//0x729B
 
-#define    ID_LEN           4
-#define    DATA_LEN         8
-#define    DATA_FD_LEN      64
-#define    COM_BUF_LEN      100
-#define    DATA_LEN_ERR     12
-#define    TIME_CHAR_NUM    13
+#define  ID_LEN                     4
+#define  DATA_LEN                   8
+#define  DATA_FD_LEN                64
+#define  COM_BUF_LEN                100
+#define  DATA_LEN_ERR               12
+#define  TIME_CHAR_NUM              13
 
-#define U2C_TR_FIRST_BYTE         0x0F
-#define U2C_TR_LAST_BYTE          0xEF
-#define U2C_TR_SPEC_BYTE          0x1F
+#define  U2C_TR_FIRST_BYTE          0x0F
+#define  U2C_TR_LAST_BYTE           0xEF
+#define  U2C_TR_SPEC_BYTE           0x1F
 
 #define  U2C_TR_CMD_TX_CAN          0x81
 #define  U2C_TR_CMD_TX_CAN_TS       0x82
@@ -34,18 +34,18 @@
 
 enum CAN_SPEED
 {
-  SPEED_10k = 10,
-  SPEED_20k = 20,
-  SPEED_33_3k = 33,
-  SPEED_50k = 50,
-  SPEED_62_5k = 62,
-  SPEED_83_3k = 83,
-  SPEED_100k  = 100,
-  SPEED_125k  = 125,
-  SPEED_250k  = 250,
-  SPEED_500k  = 500,
-  SPEED_1M  = 1000,
-  SPEED_USR = 0,
+  SPEED_10k     = 10,
+  SPEED_20k     = 20,
+  SPEED_33_3k   = 33,
+  SPEED_50k     = 50,
+  SPEED_62_5k   = 62,
+  SPEED_83_3k   = 83,
+  SPEED_100k    = 100,
+  SPEED_125k    = 125,
+  SPEED_250k    = 250,
+  SPEED_500k    = 500,
+  SPEED_1M      = 1000,
+  SPEED_USR     = 0,
 };
 
 enum CAN_FD_SPEED
@@ -104,17 +104,17 @@ enum CAN_PORT
   PORT_3
 };
 enum USER_BITTIMING_PAR {
-NBRP = 0,
-NTSEG1,
-NTSEG2,
-NSJW,
-DBRP,
-DTSEG1,
-DTSEG2,
-DSJW,
-TDCO,
-TDCV,
-TDCMOD,
+  NBRP = 0,
+  NTSEG1,
+  NTSEG2,
+  NSJW,
+  DBRP,
+  DTSEG1,
+  DTSEG2,
+  DSJW,
+  TDCO,
+  TDCV,
+  TDCMOD,
 };
 
 enum TDC_MOD {
@@ -340,9 +340,9 @@ inline static void USB2CAN_TRIPLE_SendTimeStampMode(bool mode, int fd)
   }
 }
 
-inline static void USB2CAN_TRIPLE_SendFDCANUsrSpeed(unsigned int NBRP, unsigned int NTSEG1, unsigned int NTSEG2, unsigned int NSJW, 
-  unsigned int DBRP, unsigned int DTSEG1, unsigned int DTSEG2, unsigned int DSJW, unsigned int TDCO, unsigned int TDCV, unsigned int TDCMOD, 
-  bool listen_only, bool esi, bool iso_crc, int fd)
+inline static void USB2CAN_TRIPLE_SendFDCANUsrSpeed(unsigned int NBRP, unsigned int NTSEG1, unsigned int NTSEG2, unsigned int NSJW,
+    unsigned int DBRP, unsigned int DTSEG1, unsigned int DTSEG2, unsigned int DSJW, unsigned int TDCO, unsigned int TDCV, unsigned int TDCMOD,
+    bool listen_only, bool esi, bool iso_crc, int fd)
 {
 
   unsigned char buffer[64];

@@ -133,6 +133,7 @@ int main (int argc, char *argv[])
       }
       for (i = 0; i < 3; i++)
         listen_only[i] = (bool)atoi(tmp[i]);
+
       break;
     case 'd'://run a deamon
       run_as_daemon = 0;
@@ -175,6 +176,12 @@ int main (int argc, char *argv[])
       print_usage(argv[0]);
       break;
     }
+    i=0;
+  }
+
+  for(int i =0; i < 3; i++)
+  {
+    printf("name::%s\n", name[i]);
   }
   /* Initialize the logging interface */
   openlog(DAEMON_NAME, LOG_PID, LOG_LOCAL5);
@@ -250,7 +257,9 @@ int main (int argc, char *argv[])
   }
   else
   {
-    USB2CAN_TRIPLE_SendFDCANUsrSpeed(user_speed[NBRP], user_speed[NTSEG1], user_speed[NTSEG2], user_speed[NSJW], user_speed[DBRP], user_speed[DTSEG1], user_speed[DTSEG2], user_speed[DSJW], user_speed[TDCO], user_speed[TDCV], user_speed[TDCMOD], listen_only[PORT_3], esi, iso_crc, fd);
+    USB2CAN_TRIPLE_SendFDCANUsrSpeed(user_speed[NBRP], user_speed[NTSEG1], user_speed[NTSEG2], user_speed[NSJW],
+                                     user_speed[DBRP], user_speed[DTSEG1], user_speed[DTSEG2], user_speed[DSJW], user_speed[TDCO], user_speed[TDCV], user_speed[TDCMOD],
+                                     listen_only[PORT_3], esi, iso_crc, fd);
   }
 
   sleep(1);
@@ -387,30 +396,6 @@ static void child_handler (int signum)
 
 } /* END: child_handler() */
 
-static void print_bittiming()
-{
-  fprintf(stderr, "For detailed information see MCP2517FD datasheet\n");
-  fprintf(stderr, "No validation is provided, so be careful !!\n");
-  fprintf(stderr, "You can find online calculators\n");
-  fprintf(stderr, "<bittiming options> --> ./tripled_64 -c[NBRP]:[NTSEG1]:[NTSEG2]:[NSJW]:[DBRP]:[DTSEG1]:[DTSEG2]:[DSJW]:[TDCO]:[TDCV]:[TDCMOD]\n");
-  fprintf(stderr, "Nominal bittiming\n");
-  fprintf(stderr, "NBRP - Nominal Baud Rate Prescaler\n");
-  fprintf(stderr, "NTSEG1 - Time Segment 1\n");
-  fprintf(stderr, "NTSEG2 - Time Segment 2\n");
-  fprintf(stderr, "NSJW - Synchronization Jump Width \n");
-  fprintf(stderr, "Data bittiming\n");
-  fprintf(stderr, "DBRP - Data Baud Rate Prescaler\n");
-  fprintf(stderr, "DTSEG1 - Time Segment 1\n");
-  fprintf(stderr, "DTSEG2 - Time Segment 2\n");
-  fprintf(stderr, "DSJW - Synchronzation Jump Width\n");
-  fprintf(stderr, "TDCO- Transmitter Delay Compensation Offset\n");
-  fprintf(stderr, "TDCV - Transmitter Delay Compensation Value\n");
-  fprintf(stderr, "TDCMOD - Transmitter Delay Compensation Mode\n");
-  fprintf(stderr, "TDCMOD options: 0 -> off, 1 -> manual, 2 -> auto\n");
-  fprintf(stderr, "\n");
-  exit(EXIT_FAILURE);
-}
-
 static int look_up_can_speed (int speed)
 {
   switch (speed)
@@ -485,6 +470,31 @@ static int look_up_can_fd_speed (int speed)
   default:  return 2501000;
   }
 }
+
+static void print_bittiming()
+{
+  fprintf(stderr, "For detailed information see MCP2517FD datasheet\n");
+  fprintf(stderr, "No validation is provided, so be careful !!\n");
+  fprintf(stderr, "You can find online calculators\n");
+  fprintf(stderr, "<bittiming options> --> ./tripled_64 -c[NBRP]:[NTSEG1]:[NTSEG2]:[NSJW]:[DBRP]:[DTSEG1]:[DTSEG2]:[DSJW]:[TDCO]:[TDCV]:[TDCMOD]\n");
+  fprintf(stderr, "Nominal bittiming\n");
+  fprintf(stderr, "NBRP - Nominal Baud Rate Prescaler\n");
+  fprintf(stderr, "NTSEG1 - Time Segment 1\n");
+  fprintf(stderr, "NTSEG2 - Time Segment 2\n");
+  fprintf(stderr, "NSJW - Synchronization Jump Width \n");
+  fprintf(stderr, "Data bittiming\n");
+  fprintf(stderr, "DBRP - Data Baud Rate Prescaler\n");
+  fprintf(stderr, "DTSEG1 - Time Segment 1\n");
+  fprintf(stderr, "DTSEG2 - Time Segment 2\n");
+  fprintf(stderr, "DSJW - Synchronzation Jump Width\n");
+  fprintf(stderr, "TDCO- Transmitter Delay Compensation Offset\n");
+  fprintf(stderr, "TDCV - Transmitter Delay Compensation Value\n");
+  fprintf(stderr, "TDCMOD - Transmitter Delay Compensation Mode\n");
+  fprintf(stderr, "TDCMOD options: 0 -> off, 1 -> manual, 2 -> auto\n");
+  fprintf(stderr, "\n");
+  exit(EXIT_FAILURE);
+}
+
 static void print_speed()
 {
   fprintf(stderr, "--------------------CAN 2.0--------------------\n");
