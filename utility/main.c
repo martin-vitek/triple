@@ -179,10 +179,6 @@ int main (int argc, char *argv[])
     i=0;
   }
 
-  for(int i =0; i < 3; i++)
-  {
-    printf("name::%s\n", name[i]);
-  }
   /* Initialize the logging interface */
   openlog(DAEMON_NAME, LOG_PID, LOG_LOCAL5);
 
