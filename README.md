@@ -14,3 +14,8 @@ Easy start :
 4. `sh ./start.sh`
 
 To kill and unload all `sh ./end.sh`
+
+## TODO
+1) Test on newer distributions...
+2) Use docker or some virtual env for providing tools for easier testing
+3) ..
