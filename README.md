@@ -1,5 +1,7 @@
 # USB2CAN
 
+Driver was tested on ubuntu 18.04
+
 SLCAN like driver for PIC based USB to CAN adapter USB2CAN Triple from Canlab s.r.o.
 For more info https://github.com/canlab-cz/triple/wiki/Manual
 
