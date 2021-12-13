@@ -52,7 +52,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TripleCAN interface driver");
 MODULE_ALIAS("USB2CAN Triple");
-MODULE_VERSION("v1.1");
+MODULE_VERSION("v1.2");
 MODULE_AUTHOR("Canlab");
 
 /* global variables & define */
@@ -224,7 +224,11 @@ static void __exit triple_exit (void)
 #endif
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+    unregister_candev(dev);
+  #else
     unregister_netdev(dev);
+  #endif
   }
 
   kfree(triple_devs);
@@ -332,15 +336,27 @@ static int triple_open (struct tty_struct *tty)
     err = register_netdevice(adapter->devs[1]);
     if (err)
     {
-      unregister_netdev(adapter->devs[0]);
+      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+        unregister_netdev(adapter->devs[0]);
+      #else
+        unregister_candev(adapter->devs[0]);
+      #endif
       goto ERR_FREE_CHAN;
     }
 
     err = register_netdevice(adapter->devs[2]);
     if (err)
     {
-      unregister_netdev(adapter->devs[0]);
-      unregister_netdev(adapter->devs[1]);
+      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+        unregister_netdev(adapter->devs[0]);
+      #else
+        unregister_candev(adapter->devs[0]);
+      #endif
+      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+        unregister_netdev(adapter->devs[1]);
+      #else
+        unregister_candev(adapter->devs[1]);
+      #endif
       goto ERR_FREE_CHAN;
     }
 
@@ -387,10 +403,16 @@ static void triple_close (struct tty_struct *tty)
 
   flush_work(&adapter->tx_work);
 
-  /* Flush network side */
+    /* Flush network side */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+  unregister_candev(adapter->devs[0]);
+  unregister_candev(adapter->devs[1]);
+  unregister_candev(adapter->devs[2]);
+#else
   unregister_netdev(adapter->devs[0]);
   unregister_netdev(adapter->devs[1]);
   unregister_netdev(adapter->devs[2]);
+#endif
   /* This will complete via triple_free_netdev */
 
 
@@ -487,7 +509,10 @@ static int triple_netdev_open (struct net_device *dev)
 
   adapter->flags &= (1 << SLF_INUSE);
   netif_start_queue(dev);
+  ///////////////////////////////////////////////////////
+  channel = (dev->base_addr & 0xF00) >> 8;
 
+  /////////////////////////////////////////////////////////13.12.2021 
   return 0;
 
 } /* END: triple_netdev_open() */
