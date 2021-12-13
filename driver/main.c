@@ -225,9 +225,10 @@ static void __exit triple_exit (void)
     }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
-    unregister_candev(dev);
-  #else
     unregister_netdev(dev);
+
+  #else
+    unregister_candev(dev);
   #endif
   }
 
@@ -405,13 +406,13 @@ static void triple_close (struct tty_struct *tty)
 
     /* Flush network side */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
-  unregister_candev(adapter->devs[0]);
-  unregister_candev(adapter->devs[1]);
-  unregister_candev(adapter->devs[2]);
-#else
   unregister_netdev(adapter->devs[0]);
   unregister_netdev(adapter->devs[1]);
   unregister_netdev(adapter->devs[2]);
+#else
+    unregister_candev(adapter->devs[0]);
+  unregister_candev(adapter->devs[1]);
+  unregister_candev(adapter->devs[2]);
 #endif
   /* This will complete via triple_free_netdev */
 
@@ -509,10 +510,6 @@ static int triple_netdev_open (struct net_device *dev)
 
   adapter->flags &= (1 << SLF_INUSE);
   netif_start_queue(dev);
-  ///////////////////////////////////////////////////////
-  channel = (dev->base_addr & 0xF00) >> 8;
-
-  /////////////////////////////////////////////////////////13.12.2021 
   return 0;
 
 } /* END: triple_netdev_open() */
