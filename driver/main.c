@@ -337,7 +337,7 @@ static int triple_open (struct tty_struct *tty)
     err = register_netdevice(adapter->devs[1]);
     if (err)
     {
-      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+      #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
         unregister_netdev(adapter->devs[0]);
       #else
         unregister_candev(adapter->devs[0]);
@@ -348,12 +348,12 @@ static int triple_open (struct tty_struct *tty)
     err = register_netdevice(adapter->devs[2]);
     if (err)
     {
-      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+      #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
         unregister_netdev(adapter->devs[0]);
       #else
         unregister_candev(adapter->devs[0]);
       #endif
-      #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+      #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
         unregister_netdev(adapter->devs[1]);
       #else
         unregister_candev(adapter->devs[1]);
