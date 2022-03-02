@@ -824,9 +824,9 @@ static void triple_free_netdev (struct net_device *dev)
 } /* END: triple_free_netdev() */
 
 /*---------------------------------------------------------------------------------------------------*/
-void print_func_trace (bool is_print, int line, const char *func)
+void print_func_trace (bool is_trace, int line, const char *func)
 {
-  if (is_print)
+  if (is_trace)
     printk("----------------> %d, %s()\n", line, func);
 
 
