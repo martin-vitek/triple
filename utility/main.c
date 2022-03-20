@@ -114,7 +114,7 @@ int main (int argc, char *argv[])
       {
         tmp[++i] = strtok(NULL, ":");
       }
-      speed[PORT_1] = look_up_can_speed(strtol(tmp[0], NULL, 16));
+      speed[PORT_1] =SPEED_250k;// look_up_can_speed(strtol(tmp[0], NULL, 16));
       speed[PORT_2] = look_up_can_speed(strtol(tmp[1], NULL, 16));
       speed[PORT_3] = look_up_can_fd_speed(strtol(tmp[2], NULL, 16));
       break;
@@ -242,11 +242,11 @@ int main (int argc, char *argv[])
   //USB2CAN_TRIPLE_Init(speed, fd);
 
   USB2CAN_TRIPLE_SendTimeStampMode(false, fd);
-  sleep(1);
+  sleep(2);
   USB2CAN_TRIPLE_SendCANSpeed(1, speed[PORT_1], listen_only[PORT_1], fd);
-  sleep(1);
+  sleep(2);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed[PORT_2], listen_only[PORT_2], fd);
-  sleep(1);
+  sleep(2);
   if (!user_bittiming)
   {
     USB2CAN_TRIPLE_SendFDCANSpeed(speed[PORT_3], listen_only[PORT_3], esi, iso_crc, fd);

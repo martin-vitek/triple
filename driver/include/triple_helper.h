@@ -26,6 +26,16 @@
 #define  U2C_TR_CMD_SPEED_DOWN      0x91
 #define  U2C_TR_CMD_SPEED_UP        0x92
 
+
+#define U2C_TR_CMD_TX_CAN_1  0xA0
+#define U2C_TR_CMD_TX_CAN_2  0xA1
+#define U2C_TR_CMD_TX_CAN_3  0xA2
+#define U2C_TR_CMD_TX_CAN_3_ESI  0xA3
+
+#define U2C_TR_CMD_TX_CAN_1_TS  0xB0
+#define U2C_TR_CMD_TX_CAN_2_TS  0xB1
+#define U2C_TR_CMD_TX_CAN_3_TS  0xB2
+#define U2C_TR_CMD_TX_CAN_3_TS_ESI  0xB3
 enum
 {
   TRIPLE_SID = 0,

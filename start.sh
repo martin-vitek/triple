@@ -5,7 +5,7 @@ sudo insmod usb2cansocketcan.ko
 sudo cp usb2cansocketcan.ko /lib/modules/$(uname -r)/kernel/drivers/net/can
 sudo depmod -a
 sudo modprobe usb2cansocketcan
-sudo ./tripled_64 ttyACM0 -s0x09:0x0A:0x15 -ncan0:can1:canfd2
+sudo ./tripled_64 ttyACM0 -s0x09:0x0A:0x0A -ncan0:can1:canfd2
 sleep 1
 sudo sudo ip link set can0 up qlen 1000
 sleep 1
