@@ -51,14 +51,14 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
-  #include <linux/can/dev.h>
+#include <linux/can/dev.h>
 #endif
 #include "tx.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TripleCAN interface driver");
 MODULE_ALIAS("USB2CAN Triple");
-MODULE_VERSION("v1.1");
+MODULE_VERSION("v1.3");
 MODULE_AUTHOR("Canlab");
 
 /* global variables & define */
@@ -73,12 +73,12 @@ MODULE_AUTHOR("Canlab");
  */
 #endif
 
-bool trace_func_main = true;
-bool trace_func_tran = true;
-bool trace_func_pars = true;
-bool show_debug_main = true;
-bool show_debug_tran = true;
-bool show_debug_pars = true;
+bool trace_func_main = false;
+bool trace_func_tran = false;
+bool trace_func_pars = false;
+bool show_debug_main = false;
+bool show_debug_tran = false;
+bool show_debug_pars = false;
 
 int maxdev = 3;
 __initconst const char banner[] = "USB2CAN TRIPLE SocketCAN interface driver\n";
@@ -102,7 +102,7 @@ static void triple_write_wakeup(struct tty_struct *tty);
 static struct tty_ldisc_ops triple_ldisc =
     {
         .owner = THIS_MODULE,
-        //.num = N_TRIPLE,
+//.num = N_TRIPLE,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
         .magic = TTY_LDISC_MAGIC,
 #endif
@@ -152,7 +152,7 @@ static int __init triple_init(void)
   printk(banner);
   printk(KERN_ERR "triple: %d interface channels.\n", maxdev);
 
-  triple_devs = kzalloc( sizeof(struct net_device *) * maxdev, GFP_KERNEL);
+  triple_devs = kzalloc(sizeof(struct net_device *) * maxdev, GFP_KERNEL);
 
   if (!triple_devs)
     return -ENOMEM;
@@ -381,7 +381,6 @@ ERR_FREE_CHAN:
   tty->disc_data = NULL;
   clear_bit(SLF_INUSE, &adapter->flags);
 
-
 ERR_EXIT:
   rtnl_unlock();
 
@@ -424,7 +423,7 @@ static int triple_hangup(struct tty_struct *tty)
   /*=======================================================*/
 
   triple_close(tty);
-    return 0;
+  return 0;
 
 } /* END: triple_hangup() */
 
@@ -448,6 +447,7 @@ static int triple_ioctl(struct tty_struct *tty, struct file *file, unsigned int 
   {
     if (adapter->gif_channel > 2)
       return 0;
+
     printk("gif_channel:%d\n", adapter->gif_channel);
 
     channel = adapter->gif_channel;
@@ -469,8 +469,6 @@ static int triple_ioctl(struct tty_struct *tty, struct file *file, unsigned int 
 
   default:
     return tty_mode_ioctl(tty, file, cmd, arg);
-
-  
   }
 
 } /* END: triple_ioctl() */
@@ -589,16 +587,16 @@ static netdev_tx_t triple_xmit(struct sk_buff *skb, struct net_device *dev)
   netif_stop_queue(adapter->devs[1]);
   netif_stop_queue(adapter->devs[2]);
 
-  int can_fd_channel = 2;
+  //int can_fd_channel = 2;
 
-  if ((channel == can_fd_channel) && (adapter->can_fd)) // CAN_FD
-  {
-    triple_encaps_fd(adapter, 2, (struct canfd_frame *)skb->data); // sockatCAN frame -> Triple HW (ttyWrite)
-  }
-  else // CAN 2.0
-  {
-    triple_encaps(adapter, channel, (struct can_frame *)skb->data); // sockatCAN frame -> Triple HW (ttyWrite)
-  }
+  // if ((channel == can_fd_channel) && (adapter->can_fd)) // CAN_FD
+  //{
+  triple_encaps_fd(adapter, 2, (struct canfd_frame *)skb->data); // sockatCAN frame -> Triple HW (ttyWrite)
+  //}
+  // else // CAN 2.0
+  // {
+  //   triple_encaps(adapter, channel, (struct can_frame *)skb->data); // sockatCAN frame -> Triple HW (ttyWrite)
+  // }
 
   spin_unlock(&adapter->lock);
 
@@ -717,7 +715,9 @@ static int triple_alloc(dev_t line, USB2CAN_TRIPLE *adapter)
 #endif /* USES_ALLOC_CANDEV */
 
   sprintf(name, "triplecan%d", id[2]);
+
   adapter->can_fd = true;
+
   if (adapter->can_fd)
   {
     printk("---------------->canfd alloc netdev\n");
@@ -773,10 +773,10 @@ static int triple_alloc(dev_t line, USB2CAN_TRIPLE *adapter)
 #ifdef USES_ALLOC_CANDEV
   triple_setup(devs[0]);
   triple_setup(devs[1]);
-  if (adapter->can_fd)
-    triple_fd_setup(devs[2]);
-  else
-    triple_setup(devs[2]);
+  // if (adapter->can_fd)
+  triple_fd_setup(devs[2]);
+  // else
+  //   triple_setup(devs[2]);
 
 #endif /* USES_ALLOC_CANDEV */
 
@@ -814,7 +814,7 @@ static void triple_setup(struct net_device *dev)
   dev->addr_len = 0;
   dev->tx_queue_len = 100;
 
-  dev->mtu = sizeof(struct can_frame);//CAN_MTU;
+  dev->mtu = sizeof(struct can_frame); // CAN_MTU;canfd_frame
   dev->type = ARPHRD_CAN;
 
   /* New-style flags. */
@@ -841,7 +841,8 @@ static void triple_fd_setup(struct net_device *dev)
   dev->addr_len = 0;
   dev->tx_queue_len = 100;
 
-  dev->mtu = CANFD_MTU;
+  dev->mtu = sizeof(struct canfd_frame);
+  ;
   dev->type = ARPHRD_CAN;
 
   /* New-style flags. */
