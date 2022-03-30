@@ -89,7 +89,7 @@ int main (int argc, char *argv[])
   char           *name[3];
   bool listen_only[3];
   unsigned int user_speed[10];
-  bool can_fd = false;
+  bool can_fd = true;
   bool iso_crc = false;
   bool esi = false;
   bool user_bittiming = false;
@@ -97,7 +97,9 @@ int main (int argc, char *argv[])
   name[PORT_1] = NULL;
   name[PORT_2] = NULL;
   name[PORT_3] = NULL;
-
+  listen_only[PORT_1] = false;
+  listen_only[PORT_2] = false;
+  listen_only[PORT_3] = false;
   ttypath[0] = '\0';
   const char delim[] = ":";
   int i = 0;
@@ -240,13 +242,18 @@ int main (int argc, char *argv[])
 
   /*Set speed on can port, timestamp mode and get FW version*/
   //USB2CAN_TRIPLE_Init(speed, fd);
-
+ USB2CAN_TRIPLE_SendBufferMode(fd);
+  sleep(2);
   USB2CAN_TRIPLE_SendTimeStampMode(false, fd);
-  sleep(1);
+  sleep(2);
   USB2CAN_TRIPLE_SendCANSpeed(1, speed[PORT_1], listen_only[PORT_1], fd);
-  sleep(1);
+    syslog(LOG_NOTICE, "can1 setting speed: %d listen only: %d!\n", speed[PORT_1], listen_only[PORT_1]);
+
+  sleep(2);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed[PORT_2], listen_only[PORT_2], fd);
-  sleep(1);
+    syslog(LOG_NOTICE, "can1 setting speed: %d listen only: %d!\n", speed[PORT_2], listen_only[PORT_2]);
+
+  sleep(2);
   if (!user_bittiming)
   {
     USB2CAN_TRIPLE_SendFDCANSpeed(speed[PORT_3], listen_only[PORT_3], esi, iso_crc, fd);
@@ -257,6 +264,7 @@ int main (int argc, char *argv[])
                                      user_speed[DBRP], user_speed[DTSEG1], user_speed[DTSEG2], user_speed[DSJW], user_speed[TDCO], user_speed[TDCV], user_speed[TDCMOD],
                                      listen_only[PORT_3], esi, iso_crc, fd);
   }
+    syslog(LOG_NOTICE, "can1 setting speed: %d listen only: %d!\n", speed[PORT_3], listen_only[PORT_3]);
 
   sleep(1);
   USB2CAN_TRIPLE_GetFWVersion(fd);

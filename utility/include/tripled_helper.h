@@ -30,7 +30,7 @@
 #define  U2C_TR_CMD_FW_VER          0x90
 #define  U2C_TR_CMD_SPEED_DOWN      0x91
 #define  U2C_TR_CMD_SPEED_UP        0x92
-
+#define  U2C_TR_CMD_BUFFER_MODE 0x8D
 
 enum CAN_SPEED
 {
@@ -252,6 +252,27 @@ inline static unsigned char USB2CAN_TRIPLE_CANFD_LengthFromDLC(const unsigned ch
   case 0x0F: return 64;
   }
   return 0;
+}
+inline static void USB2CAN_TRIPLE_SendBufferMode(int fd)
+{
+	unsigned char buffer[16];
+	unsigned char length=3;
+	buffer[0] = U2C_TR_FIRST_BYTE;
+	buffer[1] = 4;
+	buffer[2] = U2C_TR_CMD_BUFFER_MODE;
+  u_int32_t buffer_mode = 1;
+	length+=USB2CAN_TRIPLE_PushByte(buffer_mode >>24,&buffer[length]);
+	length+=USB2CAN_TRIPLE_PushByte(buffer_mode>>16,&buffer[length]);
+	length+=USB2CAN_TRIPLE_PushByte(buffer_mode>>8,&buffer[length]);
+	length+=USB2CAN_TRIPLE_PushByte(buffer_mode>>0,&buffer[length]);
+	buffer[length] = U2C_TR_LAST_BYTE;
+	length++;
+	buffer[1] = length;
+
+  if (write(fd, buffer, length) <= 0)
+  {
+    perror("write USB2CAN_TRIPLE_SendCANSpeed");
+  }
 }
 
 inline static void USB2CAN_TRIPLE_GetFWVersion(int fd)
