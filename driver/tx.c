@@ -76,7 +76,7 @@ void triple_bump(USB2CAN_TRIPLE *adapter)
   if (ret == 1)
   {
     if (show_debug_tran)
-     printk("U2C_TR_CMD_STATUS\n");
+      ;//printk("U2C_TR_CMD_STATUS\n");
     return;
   }
   else if (ret == 2)
@@ -84,7 +84,8 @@ void triple_bump(USB2CAN_TRIPLE *adapter)
     if (show_debug_tran)
       printk("U2C_TR_CMD_FW_VER\n");
     return;
-  } else
+  }
+  else
   {
     if (show_debug_tran)
     {
@@ -292,6 +293,14 @@ void triple_encaps(USB2CAN_TRIPLE *adapter, int channel, struct can_frame *cf)
     triple_frame.data[i] = cf->data[i];
 
   len = TripleSendHex(&triple_frame);
+
+  /*===============================*/
+  static int cnt = 1;
+
+  for (i = 0; i < COM_BUF_LEN; i++)
+    printk("%02X ", triple_frame.comm_buf[i]);
+  printk("\n");
+
   memcpy(adapter->xbuff, triple_frame.comm_buf, len);
 
   /* Order of next two lines is *very* important.

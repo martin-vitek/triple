@@ -31,7 +31,7 @@ int TripleSendHex(TRIPLE_CAN_FRAME *frame)
     length += USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_TX_CAN_3, (p + length));
   else
     length += USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_TX_CAN, (p + length));
-  // length += USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_TX_CAN, (p + length));
+ //length += USB2CAN_TRIPLE_PushByte(U2C_TR_CMD_TX_CAN, (p + length));
 
   //*(p + length) = U2C_TR_CMD_TX_CAN;
   /* byte 3- 6  //ID */
@@ -62,7 +62,7 @@ int TripleSendHex(TRIPLE_CAN_FRAME *frame)
   /*byte 8 WRITE DLC */
   length += USB2CAN_TRIPLE_PushByte(dlc, (p + length));
   /*byre 9 PORT -> channel */
-  // length += USB2CAN_TRIPLE_PushByte(frame->CAN_port , (p + length));
+  //length += USB2CAN_TRIPLE_PushByte(frame->CAN_port , (p + length));
   /* byte 10 - 17 DATA */
   for (int i = 0; i < frame->dlc; i++)
   {

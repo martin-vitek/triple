@@ -102,7 +102,7 @@ static void triple_write_wakeup(struct tty_struct *tty);
 static struct tty_ldisc_ops triple_ldisc =
     {
         .owner = THIS_MODULE,
-        .num = N_TRIPLE,
+        //.num = N_TRIPLE,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
         .magic = TTY_LDISC_MAGIC,
 #endif
@@ -152,7 +152,7 @@ static int __init triple_init(void)
   printk(banner);
   printk(KERN_ERR "triple: %d interface channels.\n", maxdev);
 
-  triple_devs = kcalloc(maxdev, sizeof(struct net_device *) * maxdev, GFP_KERNEL);
+  triple_devs = kzalloc( sizeof(struct net_device *) * maxdev, GFP_KERNEL);
 
   if (!triple_devs)
     return -ENOMEM;
@@ -380,7 +380,7 @@ ERR_FREE_CHAN:
   adapter->tty = NULL;
   tty->disc_data = NULL;
   clear_bit(SLF_INUSE, &adapter->flags);
-  rtnl_unlock();
+
 
 ERR_EXIT:
   rtnl_unlock();
@@ -814,7 +814,7 @@ static void triple_setup(struct net_device *dev)
   dev->addr_len = 0;
   dev->tx_queue_len = 100;
 
-  dev->mtu = CAN_MTU;
+  dev->mtu = sizeof(struct can_frame);//CAN_MTU;
   dev->type = ARPHRD_CAN;
 
   /* New-style flags. */

@@ -114,7 +114,7 @@ int main (int argc, char *argv[])
       {
         tmp[++i] = strtok(NULL, ":");
       }
-      speed[PORT_1] =SPEED_250k;// look_up_can_speed(strtol(tmp[0], NULL, 16));
+      speed[PORT_1] = look_up_can_speed(strtol(tmp[0], NULL, 16));
       speed[PORT_2] = look_up_can_speed(strtol(tmp[1], NULL, 16));
       speed[PORT_3] = look_up_can_fd_speed(strtol(tmp[2], NULL, 16));
       break;
@@ -240,12 +240,17 @@ int main (int argc, char *argv[])
 
   /*Set speed on can port, timestamp mode and get FW version*/
   //USB2CAN_TRIPLE_Init(speed, fd);
-
+ USB2CAN_TRIPLE_SendBufferMode(fd);
+  sleep(2);
   USB2CAN_TRIPLE_SendTimeStampMode(false, fd);
   sleep(2);
   USB2CAN_TRIPLE_SendCANSpeed(1, speed[PORT_1], listen_only[PORT_1], fd);
+    syslog(LOG_NOTICE, "can1 setting speed: %d listen only: %d!\n", speed[PORT_1], listen_only[PORT_1]);
+
   sleep(2);
   USB2CAN_TRIPLE_SendCANSpeed(2, speed[PORT_2], listen_only[PORT_2], fd);
+    syslog(LOG_NOTICE, "can1 setting speed: %d listen only: %d!\n", speed[PORT_2], listen_only[PORT_2]);
+
   sleep(2);
   if (!user_bittiming)
   {
@@ -257,6 +262,7 @@ int main (int argc, char *argv[])
                                      user_speed[DBRP], user_speed[DTSEG1], user_speed[DTSEG2], user_speed[DSJW], user_speed[TDCO], user_speed[TDCV], user_speed[TDCMOD],
                                      listen_only[PORT_3], esi, iso_crc, fd);
   }
+    syslog(LOG_NOTICE, "can1 setting speed: %d listen only: %d!\n", speed[PORT_3], listen_only[3]);
 
   sleep(1);
   USB2CAN_TRIPLE_GetFWVersion(fd);
