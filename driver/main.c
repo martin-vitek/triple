@@ -94,15 +94,15 @@ module_exit(triple_exit);
 /* driver layer - (2)  TTY line discipline */
 static int triple_open(struct tty_struct *tty);
 static void triple_close(struct tty_struct *tty);
-static int triple_hangup(struct tty_struct *tty);
+static void triple_hangup(struct tty_struct *tty);
 static int triple_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
-static void triple_receive_buf(struct tty_struct *tty, const unsigned char *cp, char *fp, int count);
+static void triple_receive_buf(struct tty_struct *tty, const unsigned char *cp, const char *fp, int count);
 static void triple_write_wakeup(struct tty_struct *tty);
 
 static struct tty_ldisc_ops triple_ldisc =
     {
         .owner = THIS_MODULE,
-//.num = N_TRIPLE,
+        .num = N_TRIPLE,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
         .magic = TTY_LDISC_MAGIC,
 #endif
@@ -158,7 +158,7 @@ static int __init triple_init(void)
     return -ENOMEM;
 
   /* Fill in our line protocol discipline, and register it */
-  status = tty_register_ldisc(N_TRIPLE, &triple_ldisc);
+  status = tty_register_ldisc(&triple_ldisc);
   printk(KERN_ERR "triple: register line discipline%d\n", N_TRIPLE);
 
   if (status)
@@ -246,11 +246,11 @@ static void __exit triple_exit(void)
   kfree(triple_devs);
   triple_devs = NULL;
 
-  tty_unregister_ldisc(N_TRIPLE);
+  tty_unregister_ldisc(&triple_ldisc);
 
 } /* END: triple_exit() */
 
-static void triple_receive_buf(struct tty_struct *tty, const unsigned char *cp, char *fp, int count)
+static void triple_receive_buf(struct tty_struct *tty, const unsigned char *cp, const char *fp, int count)
 {
   USB2CAN_TRIPLE *adapter = (USB2CAN_TRIPLE *)tty->disc_data;
 
@@ -416,15 +416,13 @@ static void triple_close(struct tty_struct *tty)
 
 } /* END: triple_close() */
 
-static int triple_hangup(struct tty_struct *tty)
+static void triple_hangup(struct tty_struct *tty)
 {
   /*=======================================================*/
   print_func_trace(trace_func_main, __LINE__, __FUNCTION__);
   /*=======================================================*/
 
   triple_close(tty);
-  return 0;
-
 } /* END: triple_hangup() */
 
 static int triple_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
@@ -468,7 +466,7 @@ static int triple_ioctl(struct tty_struct *tty, struct file *file, unsigned int 
     return -EINVAL;
 
   default:
-    return tty_mode_ioctl(tty, file, cmd, arg);
+    return tty_mode_ioctl(tty, cmd, arg);
   }
 
 } /* END: triple_ioctl() */
